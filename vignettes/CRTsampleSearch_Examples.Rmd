@@ -1,0 +1,558 @@
+---
+title: "CRTsampleSearch_Examples"
+author: "Ruoshui Zhai"
+date: "October 6, 2019"
+output: html_document
+---
+
+```{r, include = FALSE, message=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Section 1: Using distributions of known forms
+The goal of this section is to show you how to use CRTsampleSearch to estimate the optimal number of clusters for a cluster randomization trial (CRT) with examples discussed in our paper where a new simulation-base search method is proposed (link). All the simulation examples in Section 6 of the paper are included in this document.
+
+<!-- The package includes two main funtions, `CRTsearch` and `calc_power` and they can be used in two types of settings: 1) when the input data distributions are of known forms, e.g. normal, bernoulli, or poisson distributions; 2) when the input data distributions are emperical distributions composited by, for example, data collected in other studies.   --> 
+
+```{r, message=FALSE}
+devtools::install_github("RuoshuiAqua/CRTsampleSearch")
+library(CRTsampleSearch)
+```
+
+## uneven cluster sizes
+```{r, eval=FALSE, message=FALSE}
+## simulate size of a cluster: log-normal distribution
+sim_cluster_size = function(N, ...){
+  size = round(100*rlnorm(N, 0, 1), 0)
+  size[size<=0] = 1
+  print(sigma2n)
+  return(size)
+}
+
+## continuous outcome: Normal and Normal Two-level Model + fixed_continuous_change
+sim_potential_outcomes = function(m,...){
+  muibar = rnorm(1, 0, 1)
+  Y0 = rnorm(m, muibar, 10) 
+  Y1 = Y0 + 1
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+
+## test statistics: pooled difference btw the two arm means
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+  return(re)
+}
+
+## CRTsampleSearch 
+n=CRTsearch(nrep=1e3, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+
+
+## using formula (Rutterford et cl. 2015)
+sigma2n = 1
+m = 100 * exp(0 + sigma2n/2) ## average cluster size 
+m_sd = sqrt(100^2*(exp(sigma2n)-1)*exp(2*0+sigma2n)) ## variance of the cluster size
+sigma2 = 1 + 10 ## overall variance
+ICC = 1 / 11 ## inter-cluster correlation
+alpha = 0.05
+minpower=0.8
+delta = 1
+DE1 = 1+(m-1)*ICC ## Design Effect
+N_1 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE1/m)
+N_1
+
+## formula with correlation
+DE2 = 1+(((m_sd/m)^2+1)*m-1)*ICC ## Design Effect
+N_2 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE2/m)
+N_2
+DE3 = 1/(1-(m_sd/m)^2*m/(m+(1-ICC)/ICC)*(1-m/(m+(1-ICC)/ICC))) ## Design Effect
+N_3 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE1*DE3/m)
+N_3
+```
+
+## 0-log-Normal continuous outcomes
+
+```{r, eval=FALSE}
+## simulate size of a cluster: equal cluster size (m=100)
+sim_cluster_size = function(N, ...){
+  size = rep(100,N)
+  return(size)
+}
+
+## continuous outcome: Normal and 0-log-Normal Two-level Model + fixed_continuous_change
+sim_potential_outcomes = function(m,...){
+  muibar = rnorm(1, mean=10, sd=sqrt(10))
+  muibar = ifelse(muibar<=0, 0.0001, muibar)
+  p0 = 0.8
+  v0 = rbinom(m,1,prob=1-p0)
+  varlogN = 10
+  meanlog = log(muibar / sqrt( varlogN/muibar^2 +1) )
+  sd2log = log( varlogN/ muibar^2 +1 )
+  Y0 = v0 * rlnorm(m, meanlog, sqrt(sd2log))
+  Y1 = Y0 + 1
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+
+## test statistics: pooled difference btw the two arm means
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+  return(re)
+}
+
+## CRTsampleSearch 
+CRTsearch(nrep=1e4, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+
+## using formula
+p0 = 0.2
+mu0 = 10
+sigma2mui = 10
+varlogN = 10
+delta = 1
+m = 100
+sigma2 = (1-p0)*varlogN + p0*(1-p0)*mu0^2 + (1-p0)*sigma2mui
+sigma2B = sigma2mui
+ICC = sigma2B / sigma2
+alpha = 0.05; minpower=0.8
+DE = 1+(m-1)*ICC ## Design Effect
+N = 2*ceiling(2*sigma2*( qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2/m*DE)
+N
+```
+
+## Binary outcomes
+
+```{r, eval=FALSE}
+## simulate size of a cluster: equal cluster size (m=100)
+sim_cluster_size = function(N, ...){
+  size = rep(100,N)
+  return(size)
+}
+
+## binary outcome: beta and bernoulli Two-level Model + dependent bernoulli increase
+sim_potential_outcomes = function(m,...){
+  pbar=rbeta(1,shape1=1, shape2=5)
+  Y0= rbinom(m, size=1, prob=pbar ) 
+  Y1 = rbinom(m, size=1, prob=0.2)*(1-Y0) + Y0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+
+## test statistics: pooled difference btw the two arm means
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+  return(re)
+}
+
+## CRTsampleSearch 
+CRTsearch(nrep=1e4, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+
+## using donner's formula
+alpha0 = 1
+beta0 = 5
+delta = 0.2
+m = 100
+p0 = alpha0/(alpha0+beta0)
+p1 = p0 + delta*(1-p0)
+sigma2B = p0*(1-p0)/(alpha0+beta0+1)
+sigma2 = p0*(1-p0)
+ICCH0 = sigma2B/sigma2
+alpha = 0.05; minpower=0.8
+DE = 1+(m-1)*ICCH0 ## Design Effect
+N = 2*ceiling((p0*(1-p0)+p1*(1-p1))*(qnorm(alpha/2)+qnorm(1-minpower))^2/(p1-p0)^2*DE/m)
+N
+```
+ 
+## Count outcomes
+
+### Gamma-Poisson Model
+
+```{r, eval=FALSE}
+## simulate size of a cluster: equal cluster size (m=100)
+sim_cluster_size = function(N, ...){
+  size = rep(100,N)
+  return(size)
+}
+
+## count outcome: gamma and poisson Two-level Model + independent poisson increase
+sim_potential_outcomes = function(m,...){
+  lambdai = rgamma(n=1, shape=1, rate=9)
+  Y0 = rpois(m, lambda=lambdai)
+  Y1 = rpois(m, lambda=0.1) + Y0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)    
+}
+
+## test statistics: pooled difference btw the two arm means
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+  return(re)
+}
+
+## CRTsampleSearch 
+CRTsearch(nrep=1e4, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+
+
+## using Hayes's formula
+alpha0 = 1
+beta0 = 4
+lambda0 = alpha0 / (alpha0 + beta0)
+delta = 0.1
+lambda1 = lambda0+delta
+m = 100
+meanY0B = alpha0/(alpha0+beta0) 
+varY0B = alpha0*beta0/(alpha0+beta0)^2/(alpha0+beta0+1)
+CV = sqrt(varY0B)/meanY0B
+alpha = 0.05; minpower=0.8
+N = 2*ceiling(1 + ((lambda0+lambda1)/m+CV^2*(lambda0^2+lambda1^2))*(qnorm(alpha/2)+qnorm(1-minpower) )^2/delta^2)
+N
+```
+
+
+### Gamma-ZIP Model
+
+```{r, eval=FALSE}
+## simulate size of a cluster: equal cluster size (m=100)
+sim_cluster_size = function(N, ...){
+  size = rep(100,N)
+  return(size)
+}
+
+## count outcome: gamma and zero-inflated-poisson (ZIP) Two-level Model + independent poisson increase
+sim_potential_outcomes = function(m,...){
+  lambdai = rgamma(n=1, shape=1, rate=9)
+  Y0c = rpois(m, lambda=lambdai)
+  p0=0.2
+  Y0b = rbinom(n=m, size=1, prob=1-p0)
+  Y0 = Y0c * Y0b
+  Y1 = rpois(m, lambda=0.1) + Y0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)    
+}
+
+## test statistics: pooled difference btw the two arm means
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+  return(re)
+}
+
+## CRTsampleSearch 
+CRTsearch(nrep=1e4, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+
+
+## using Hayes's formula
+p0=0.2
+alpha0 = 1
+beta0 = 4
+lambda0 = alpha0 / (alpha0 + beta0)
+delta = 0.1
+lambda1 = lambda0+delta
+m = 100
+meanY0B = (1-p0)*alpha0/(alpha0+beta0) 
+varY0B = (1-p0)^2*alpha0*beta0/(alpha0+beta0)^2/(alpha0+beta0+1)
+CV = sqrt(varY0B)/meanY0B
+alpha = 0.05; minpower=0.8
+N = 2*ceiling(1 + ((lambda0+lambda1)/m+CV^2*(lambda0^2+lambda1^2))*(qnorm(alpha/2)+qnorm(1-minpower) )^2/delta^2)
+N
+```
+
+# Section 2: Using empirical data distributions
+The goal of this section is to show you how to use CRTsampleSearch to estimate the optimal number of clusters for a cluster randomization trial (CRT) when the distributions of baseline outcomes, size of clusters, and study demographics, such as the cluster characteristic used in stratified randomization, are better approximated by emperical distributions collected from previous studies. Specifically, in this document I will repeat the examples in Section 7 of our paper using a synthetic data set generated from the Flu Data in our paper using R synthpop package. The data set is attached in the package.
+
+<!-- The package includes two main funtions, `CRTsearch` and `calc_power` and they can be used in two types of settings: 1) when the input data distributions are of known forms, e.g. normal, bernoulli, or poisson distributions; 2) when the input data distributions are emperical distributions composited by, for exampe, data collected in other studies.  --> 
+
+```{r, message=FALSE}
+devtools::install_github("RuoshuiAqua/CRTsampleSearch")
+library(CRTsampleSearch)
+```
+
+### The synthetic Flu Data
+```{r load_data, echo=TRUE, results = 'hide'}
+synFluData_loc = system.file("extdata", "synFluData.csv", package = "CRTsampleSearch")
+synFluData = read.csv(synFluData_loc)
+```
+The synthetic flu data, similar to the original one, includes data from `r length(unique(synFluData$clusterID))` clusters with an average size of `r round(mean(as.data.frame(table(synFluData$clusterID))$Freq), 1)` (ranges from `r min(as.data.frame(table(synFluData$clusterID))$Freq)` to `r max(as.data.frame(table(synFluData$clusterID))$Freq)`). All `clusterID` and `patientID` are synthetic IDs. `count` is the number of hospitalizations experienced by the patient while he/she was followed in the study. On average, patients were followed for `r round(mean(synFluData$time),1)` days and `r round(sum(synFluData$time==211)/dim(synFluData)[1]*100,1)`% of all were followed for the whole flu season (3 monthes, 211 days).  `race_aa` is a identifier for whether the patient is aferican american. `race_aa_pct` is the percentage of aferican americans within each cluster. `race_aa_strata` is a three-level strata indicator defined from `race_aa_pct` using its 33\% and 67\% percentiles.
+
+```{r display_data}
+head(synFluData)
+```
+
+## Constant change in count or rate
+
+Suppose the intervention in the new study is expected to reduce the number of hospitalization at most one time (some patients never experienced hospitalization in the flu study), the potential outcome under intervention can be simulated from the following $f_1$:
+$$f_1:  Y_{ij}(1) = max(Y_{ij}(0)-1, 0)$$
+
+```{r count_change, eval=FALSE, linewidth=60}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = Y0 - 1
+  Y1[Y1<0] = 0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  time = data[,"time_years"]
+  re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  return(re)
+}
+CRTsearch(nrep=10, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
+If we are interested in the effet of the intervention in terms of changes in hospitaliztion rate, for example suppose the intervention in the new study is expected to reduce the patient-level hospitalization rate by at most -0.1, the potential outcome under intervention can be simulated from the following $f_1$:
+$$f_1:  Y_{ij}(1) = max(Y_{ij}(0)-1.5, 0)$$
+```{r rate_change, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = Y0 - 1.5
+  Y1[Y1<0] = 0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  time = data[,"time_years"]
+  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  return(re)
+}
+CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
+
+## Stratified randomization
+As the flu study data suggests, the percentage of aferican americans varies among nuring homes (clusters). 
+```{r race_fig, fig.height = 3, fig.width = 5, fig.align = "center"}
+library(ggplot2)
+racedist = synFluData[!duplicated(synFluData$clusterID),c("clusterID","race_aa_pct")]
+ggplot(data=racedist, aes(racedist$race_aa_pct))+
+  geom_histogram(binwidth=0.01, alpha=0.7)+
+  xlab("Percentage of African Americans per Nursing Home")+
+  theme_bw()+ 
+  geom_vline(xintercept=quantile(racedist$race_aa_pct,0.33))+
+  geom_vline(xintercept=quantile(racedist$race_aa_pct,0.67))
+```
+
+Suppose the new study adopts stratified randomization, i.e. randomizing sampled clusters within each statum defined by the percentage of african americans in the nursing home, `CRTsampleSearch` should be implemented in the following way using the argument `stratifyBy`:   
+
+```{r stratified, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = Y0 - 1.5
+  Y1[Y1<0] = 0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  time = data[,"time_years"]
+  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  return(re)
+}
+CRTsearch(nrep=1e4, nt=15, nc=15, dataset=synFluData, outcome="rate", clusterID="clusterID", stratifyBy="race_aa_strata", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
+## GEE 
+When the test statistic is the effect of the intervention estimated from a generalized estimating equation (GEE), i.e. $\beta$ from the following model:
+
+$$Y_{ij}^{obs} = Y_{ij}(0)(1-W_{ij}) + Y_{ij}(1) W_{i}$$
+
+$$E(Y_{ij}^{obs}/t_{ij}) = \mu_{ij}; \quad g(\mu_{ij}) = log(\mu_{ij}) = \alpha + W_{i}\beta$$
+$$\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \beta} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)	= 0$$
+$$\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \alpha} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)	= 0 $$
+$W_{i}$ is the indicator for intervention assignment at the cluster level, $g(\cdot)$ is the log link function, $V_i$ is a the working covariance matrix of $Y^{obs}_{i}$, $\alpha$ is a constant unknown auxiliary parameter and $\beta$ is the parameter of interest.
+
+```{r GEE, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = Y0 - 1.5
+  Y1[Y1<0] = 0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
+  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable")
+  re = preg$coef[2]
+  return(re)
+}
+CRTsearch(nrep=1e2, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
+
+## Constant change in rate after fitting a zero-inflated poisson (ZIP) model
+The flu study demonstrated that the number of hospitalizations includes more 0 counts than expected from a Possion distribution. We can fit a ZIP model for each nursing home.
+```{r ZIP_model}
+# estimating the amount of inflaction per cluster
+clusterID = unique(synFluData$clusterID)
+for(i in 1:816){
+  dtmp = synFluData[synFluData$clusterID==clusterID[i],]
+  clusterSize = dim(dtmp)[1]
+  fit = pscl::zeroinfl(count ~  offset(log(time_years)) , data=dtmp, dist="poisson", link="logit")
+  clusterP0 = 1/(1+exp(-fit$coefficients$zero))
+  clusterLambda0 = exp(fit$coefficients$count)
+  synFluData$clusterP0[synFluData$clusterID==clusterID[i]] = clusterP0
+  synFluData$clusterLambda0[synFluData$clusterID==clusterID[i]] = clusterLambda0
+  synFluData$clusterSize[synFluData$clusterID==clusterID[i]] = clusterSize
+}
+head(synFluData)
+```
+The proportion of zero-inflation varies among nurisng homes.
+```{r ZIP_fig_1, fig.height = 3, fig.width = 6, fig.align = "center"}
+synfluZIP = synFluData[!duplicated(synFluData$clusterID),c("clusterID","clusterP0","clusterLambda0")]
+ggplot(data=racedist, aes(synfluZIP$clusterP0))+
+  geom_histogram(binwidth=0.005, alpha=0.7)+
+  xlab("Estimated proportion of zero-inflation from a ZIP model among Nursing Homes")+
+  theme_bw()
+```
+
+The hospitalization rate after adjusting for the zero-inflation also varies among nursing homes.
+```{r ZIP_fig_2, fig.height = 3, fig.width = 6, fig.align = "center"}
+ggplot(data=racedist, aes(synfluZIP$clusterLambda0))+
+  geom_histogram(binwidth=0.01, alpha=0.7)+
+  xlab("Estimated hospitalization rate from a ZIP model among Nursing Homes")+
+  theme_bw()
+```
+
+
+Suppose the intervention is expected to reduce the number of hospitalization for the "sub-population" of patients who is ever expected to experience hospitalization, i.e. the Possion part of the ZIP model, the potential outcome under intervention can be simulated from the feollowing $f_1$:
+$$f_1:  Y_{ij}(1) \sim ZIP(P_i, max(\lambda_i-0.5, 0)\}$$
+$P_i$ and $\lambda_i$ are the proportion of zero-inflation and event rate estimated using a ZIP for nursing home $i$.
+
+```{r ZIP_effect, eval=FALSE}
+sim_potential_outcomes = function(data, ...){ 
+  Y0 = data[,"Y0"]
+  lambda1 = data[,"clusterLambda0"] - 0.5
+  lambda1 = ifelse(lambda1<=0,0,lambda1)
+  clusterP1 = data[,"clusterP0"]
+  Y1 = sapply(lambda1*data[,"time_years"], rpois, n=1)
+  zerocount = sapply(1-clusterP1,rbinom,n=1,size=1)
+  Y1 = Y1*zerocount
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  time = data[,"time_years"]
+  re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  return(re)
+}
+CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
+
+
+## Infinite study population vs finite population
+When the available data from previous studies only include a small sample of clusters (in terms of the number of clusters not the total number of individual units), sampling with raplace assumes that the study population of the new study is infinite, whereas sampling without replacement assumes that the study population of the new study is finite. To domonstrate the difference, we take a smaller data set of 16 nursing homes from the original 817.
+```{r subset16_data, eval=FALSE}
+set.seed(2019)
+subset16 = sample(unique(synFluData$clusterID),16)
+synFluData16 = synFluData[synFluData$clusterID %in% subset16,]
+```
+
+The power for sample size from 10 to 20 is calculated in the following way. Note that when sampling without replacement, the maximum number of clusters is 16. 
+```{r subset16_power, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = Y0 - 1.5
+  Y1[Y1<0] = 0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  time = data[,"time_years"]
+  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  return(re)
+}
+
+power16 = NULL
+for(n in 5:10){
+  if(n*2>16){
+    power16_finite = NA
+  }else{
+    power16_finite = simPower(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+    power16_finite_PT = simPowerPT(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+  }
+  power16_infinite = simPower(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+  
+  power16_i = cbind(n*2, power16_finite, power16_finite_PT, power16_infinite)
+  colnames(power16_i) = list("ntotal", "power16_finite", "power16_finite_PT", "power16_infinite")
+  power16 = rbind(power16, power16_i)
+}
+power16
+```
+
+
+## Extend followup time
+When the study population is small, it might be interesting be investigate whether extending the follow-up time will increase the study power, especially when individual units are followed for different among of time due to lost of follow-up. Suppose the intervention in the new study is expected to reduce the rate of hospitalization by -0.2 at most, the potential outcomes with extented follow-up time $\Delta t$ can be simulated as follows:
+
+$$f_0:  Y_{ij}(0) \sim \big( \lambda_0 * t + Poisson(\lambda_0*\Delta t) \big) / \big( t + \Delta t\big) $$
+
+$$f_1:  Y_{ij}(1) \sim \big( max(\lambda_0-0.2,0) * t + Poisson(max(\lambda_0-0.2,0)*\Delta t) \big) / \big( t + \Delta t\big)$$
+
+If the previous study data suggests that a patient were not followed till the end of the study, it does not make sense to extend the follow-up time for them. So $\Delta t =0$ for patients who were not followed for a full 211 days in the flu study. Users should specify a lostfollowup argument in `CRTsearch` as follows: 
+```{r extend_time, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = Y0 - 1.5
+  Y1[ Y1 < 0 ] = 0
+  extendtime = 0.25
+  Y0count = Y0*data[,"time_years"]
+  Y0count_extend = rpois(1,Y0*extendtime)
+  Y1count = Y1*data[,"time_years"]
+  Y1count_extend = rpois(1,Y1*extendtime)
+  Y1 = (Y1count + Y1count_extend*(1-data[,"lostfollowup"]))/(data[,"time_years"]+extendtime*(1-data[,"lostfollowup"]))
+  Y0 = (Y0count + Y0count_extend*(1-data[,"lostfollowup"]))/(data[,"time_years"]+extendtime*(1-data[,"lostfollowup"]))
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+
+calc_teststat = function(W, data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = data[,"Y1"]
+  extendtime = 0.25
+  time = data[,"time_years"] + extendtime*(1-data[,"lostfollowup"])
+  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  return(re)
+}
+
+synFluData16$lostfollowup = ifelse(synFluData16$time_days < 211, 1 , 0)
+
+power_extendtime=NULL
+for(addtime in seq(0, 1, 0.25)){
+  power_i = simPower(nrep=1e4, nt=8, nc=8, dataset=synFluData16, outcome="rate", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat, extendtime=addtime)
+  power_extendtime = rbind(power_extendtime, cbind(addtime, power_i))
+}
+power_extendtime
+```
+
+
