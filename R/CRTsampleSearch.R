@@ -97,7 +97,7 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
         nctotal = upperbound$nc + lowerbound$nc
         nt=round(nttotal/2,0);  nc=round(nctotal/2,0)
       }
-      if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 5e4)}
+      if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
         power = median(unlist(lapply(1:Npermutationtest, function(i, ...){simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)}, ...)))
       }else{
@@ -113,7 +113,7 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
         nctotal = upperbound$nc + lowerbound$nc
         nt=round(nttotal/2,0);  nc=round(nctotal/2,0)
       }
-      if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 5e4)}
+      if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
         power = median(unlist(lapply(1:Npermutationtest, function(i, ...){simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)}, ...)))
       }else{
