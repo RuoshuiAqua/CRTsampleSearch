@@ -190,8 +190,8 @@ summary {
 <!-- The package includes two main funtions, `CRTsearch` and `calc_power` and they can be used in two types of settings: 1) when the input data distributions are of known forms, e.g. normal, bernoulli, or poisson distributions; 2) when the input data distributions are emperical distributions composited by, for example, data collected in other studies.   -->
 <pre class="r"><code>devtools::install_github(&quot;RuoshuiAqua/CRTsampleSearch&quot;)
 library(CRTsampleSearch)</code></pre>
-<div id="uneven-cluster-sizes" class="section level2">
-<h2>uneven cluster sizes</h2>
+<div id="uneven-cluster-sizes" class="section level4">
+<h4>uneven cluster sizes</h4>
 <pre class="r"><code>## simulate size of a cluster: log-normal distribution
 sim_cluster_size = function(N, ...){
   size = round(100*rlnorm(N, 0, 1), 0)
@@ -243,8 +243,8 @@ DE3 = 1/(1-(m_sd/m)^2*m/(m+(1-ICC)/ICC)*(1-m/(m+(1-ICC)/ICC))) ## Design Effect
 N_3 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE1*DE3/m)
 N_3</code></pre>
 </div>
-<div id="log-normal-continuous-outcomes" class="section level2">
-<h2>0-log-Normal continuous outcomes</h2>
+<div id="log-normal-continuous-outcomes" class="section level4">
+<h4>0-log-Normal continuous outcomes</h4>
 <pre class="r"><code>## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
   size = rep(100,N)
@@ -255,7 +255,7 @@ sim_cluster_size = function(N, ...){
 sim_potential_outcomes = function(m,...){
   muibar = rnorm(1, mean=10, sd=sqrt(10))
   muibar = ifelse(muibar&lt;=0, 0.0001, muibar)
-  p0 = 0.8
+  p0 = 0.2
   v0 = rbinom(m,1,prob=1-p0)
   varlogN = 10
   meanlog = log(muibar / sqrt( varlogN/muibar^2 +1) )
@@ -293,8 +293,8 @@ DE = 1+(m-1)*ICC ## Design Effect
 N = 2*ceiling(2*sigma2*( qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2/m*DE)
 N</code></pre>
 </div>
-<div id="binary-outcomes" class="section level2">
-<h2>Binary outcomes</h2>
+<div id="binary-outcomes" class="section level4">
+<h4>Binary outcomes</h4>
 <pre class="r"><code>## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
   size = rep(100,N)
@@ -322,25 +322,25 @@ calc_teststat = function(W, data, ...){
 ## CRTsampleSearch 
 CRTsearch(nrep=1e4, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 
-## using donner's formula
+## using formula
 alpha0 = 1
-beta0 = 5
-delta = 0.2
+beta0 = 4
+delta = 0.05
 m = 100
 p0 = alpha0/(alpha0+beta0)
 p1 = p0 + delta*(1-p0)
-sigma2B = p0*(1-p0)/(alpha0+beta0+1)
-sigma2 = p0*(1-p0)
+sigma2B = (alpha0*beta0)/(alpha0+beta0+1)/(alpha0+beta0)^2
+sigma2 = (alpha0*beta0)/(alpha0+beta0)^2
 ICCH0 = sigma2B/sigma2
 alpha = 0.05; minpower=0.8
 DE = 1+(m-1)*ICCH0 ## Design Effect
 N = 2*ceiling((p0*(1-p0)+p1*(1-p1))*(qnorm(alpha/2)+qnorm(1-minpower))^2/(p1-p0)^2*DE/m)
 N</code></pre>
 </div>
-<div id="count-outcomes" class="section level2">
-<h2>Count outcomes</h2>
-<div id="gamma-poisson-model" class="section level3">
-<h3>Gamma-Poisson Model</h3>
+<div id="count-outcomes" class="section level4">
+<h4>Count outcomes</h4>
+<div id="gamma-poisson-model" class="section level6">
+<h6>Gamma-Poisson Model</h6>
 <pre class="r"><code>## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
   size = rep(100,N)
@@ -349,7 +349,7 @@ sim_cluster_size = function(N, ...){
 
 ## count outcome: gamma and poisson Two-level Model + independent poisson increase
 sim_potential_outcomes = function(m,...){
-  lambdai = rgamma(n=1, shape=1, rate=9)
+  lambdai = rgamma(n=1, shape=10, rate=2)
   Y0 = rpois(m, lambda=lambdai)
   Y1 = rpois(m, lambda=0.1) + Y0
   re = cbind(Y0, Y1)
@@ -370,21 +370,22 @@ CRTsearch(nrep=1e4, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_p
 
 
 ## using Hayes's formula
-alpha0 = 1
-beta0 = 4
-lambda0 = alpha0 / (alpha0 + beta0)
-delta = 0.1
+alpha0 = 10
+beta0 = 2
+lambda0 = alpha0 / beta0
+delta = 5
 lambda1 = lambda0+delta
 m = 100
-meanY0B = alpha0/(alpha0+beta0) 
-varY0B = alpha0*beta0/(alpha0+beta0)^2/(alpha0+beta0+1)
+meanY0B = alpha0/beta0
+varY0B =alpha0/beta0^2
 CV = sqrt(varY0B)/meanY0B
 alpha = 0.05; minpower=0.8
-N = 2*ceiling(1 + ((lambda0+lambda1)/m+CV^2*(lambda0^2+lambda1^2))*(qnorm(alpha/2)+qnorm(1-minpower) )^2/delta^2)
-N</code></pre>
+N = 2*ceiling(1+(qnorm(alpha/2)+qnorm(1-minpower))^2*((lambda0+lambda1)/m +CV^2*(lambda0^2+lambda1^2))/delta^2)
+N
+</code></pre>
 </div>
-<div id="gamma-zip-model" class="section level3">
-<h3>Gamma-ZIP Model</h3>
+<div id="gamma-zip-model" class="section level6">
+<h6>Gamma-ZIP Model</h6>
 <pre class="r"><code>## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
   size = rep(100,N)
@@ -393,7 +394,7 @@ sim_cluster_size = function(N, ...){
 
 ## count outcome: gamma and zero-inflated-poisson (ZIP) Two-level Model + independent poisson increase
 sim_potential_outcomes = function(m,...){
-  lambdai = rgamma(n=1, shape=1, rate=9)
+  lambdai = rgamma(n=1, shape=10, rate=2)
   Y0c = rpois(m, lambda=lambdai)
   p0=0.2
   Y0b = rbinom(n=m, size=1, prob=1-p0)
@@ -418,18 +419,19 @@ CRTsearch(nrep=1e4, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_p
 
 ## using Hayes's formula
 p0=0.2
-alpha0 = 1
-beta0 = 4
-lambda0 = alpha0 / (alpha0 + beta0)
-delta = 0.1
+alpha0 = 10
+beta0 = 2
+lambda0 = (1-p0)*alpha0/beta0
+delta = 1
 lambda1 = lambda0+delta
 m = 100
-meanY0B = (1-p0)*alpha0/(alpha0+beta0) 
-varY0B = (1-p0)^2*alpha0*beta0/(alpha0+beta0)^2/(alpha0+beta0+1)
+meanY0B = (1-p0)*alpha0/beta0
+varY0B =(1-p0)^2*alpha0/beta0^2
 CV = sqrt(varY0B)/meanY0B
 alpha = 0.05; minpower=0.8
-N = 2*ceiling(1 + ((lambda0+lambda1)/m+CV^2*(lambda0^2+lambda1^2))*(qnorm(alpha/2)+qnorm(1-minpower) )^2/delta^2)
-N</code></pre>
+N = 2*ceiling(1+(qnorm(alpha/2)+qnorm(1-minpower))^2*((lambda0+lambda1)/m+CV^2*(lambda0^2+lambda1^2))/delta^2)
+N
+</code></pre>
 </div>
 </div>
 </div>
@@ -439,8 +441,8 @@ N</code></pre>
 <!-- The package includes two main funtions, `CRTsearch` and `calc_power` and they can be used in two types of settings: 1) when the input data distributions are of known forms, e.g. normal, bernoulli, or poisson distributions; 2) when the input data distributions are emperical distributions composited by, for exampe, data collected in other studies.  -->
 <pre class="r"><code>devtools::install_github(&quot;RuoshuiAqua/CRTsampleSearch&quot;)
 library(CRTsampleSearch)</code></pre>
-<div id="the-synthetic-flu-data" class="section level3">
-<h3>The synthetic Flu Data</h3>
+<div id="the-synthetic-flu-data" class="section level4">
+<h4>The synthetic Flu Data</h4>
 <pre class="r"><code>synFluData_loc = system.file(&quot;extdata&quot;, &quot;synFluData.csv&quot;, package = &quot;CRTsampleSearch&quot;)
 synFluData = read.csv(synFluData_loc)</code></pre>
 <p>The synthetic flu data, similar to the original one, includes data from 816 clusters with an average size of 64.9 (ranges from 5 to 498). All <code>clusterID</code> and <code>patientID</code> are synthetic IDs. <code>count</code> is the number of hospitalizations experienced by the patient while he/she was followed in the study. On average, patients were followed for NA days and 0% of all were followed for the whole flu season (3 monthes, 211 days). <code>race_aa</code> is a identifier for whether the patient is aferican american. <code>race_aa_pct</code> is the percentage of aferican americans within each cluster. <code>race_aa_strata</code> is a three-level strata indicator defined from <code>race_aa_pct</code> using its 33% and 67% percentiles.</p>
@@ -460,12 +462,12 @@ synFluData = read.csv(synFluData_loc)</code></pre>
 #&gt; 5              3
 #&gt; 6              3</code></pre>
 </div>
-<div id="constant-change-in-count-or-rate" class="section level2">
-<h2>Constant change in count or rate</h2>
+<div id="constant-change-in-count-or-rate" class="section level4">
+<h4>Constant change in count or rate</h4>
 <p>Suppose the intervention in the new study is expected to reduce the number of hospitalization at most one time (some patients never experienced hospitalization in the flu study), the potential outcome under intervention can be simulated from the following <span class="math inline">\(f_1\)</span>: <span class="math display">\[f_1:  Y_{ij}(1) = max(Y_{ij}(0)-1, 0)\]</span></p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){
   Y0 = data[,&quot;Y0&quot;]
-  Y1 = Y0 - 1
+  Y1 = Y0 - 1 ## effect size = -1
   Y1[Y1&lt;0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
@@ -479,10 +481,10 @@ calc_teststat = function(W, data, ...){
   return(re)
 }
 CRTsearch(nrep=10, nt=10, nc=10, dataset=synFluData, outcome=&quot;count&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
-<p>If we are interested in the effet of the intervention in terms of changes in hospitaliztion rate, for example suppose the intervention in the new study is expected to reduce the patient-level hospitalization rate by at most -0.1, the potential outcome under intervention can be simulated from the following <span class="math inline">\(f_1\)</span>: <span class="math display">\[f_1:  Y_{ij}(1) = max(Y_{ij}(0)-1.5, 0)\]</span></p>
+<p>If we are interested in the effet of the intervention in terms of changes in hospitaliztion rate, for example suppose the intervention in the new study is expected to reduce the patient-level hospitalization rate by at most 0.4, the potential outcome under intervention can be simulated from the following <span class="math inline">\(f_1\)</span>: <span class="math display">\[f_1:  Y_{ij}(1) = max(Y_{ij}(0)-0.4, 0)\]</span></p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){
   Y0 = data[,&quot;Y0&quot;]
-  Y1 = Y0 - 1.5
+  Y1 = Y0 - 0.4 ## effect size = -0.4
   Y1[Y1&lt;0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
@@ -497,8 +499,8 @@ calc_teststat = function(W, data, ...){
 }
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome=&quot;rate&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
 </div>
-<div id="stratified-randomization" class="section level2">
-<h2>Stratified randomization</h2>
+<div id="stratified-randomization" class="section level4">
+<h4>Stratified randomization</h4>
 <p>As the flu study data suggests, the percentage of aferican americans varies among nuring homes (clusters).</p>
 <pre class="r"><code>library(ggplot2)
 racedist = synFluData[!duplicated(synFluData$clusterID),c(&quot;clusterID&quot;,&quot;race_aa_pct&quot;)]
@@ -512,7 +514,7 @@ ggplot(data=racedist, aes(racedist$race_aa_pct))+
 <p>Suppose the new study adopts stratified randomization, i.e. randomizing sampled clusters within each statum defined by the percentage of african americans in the nursing home, <code>CRTsampleSearch</code> should be implemented in the following way using the argument <code>stratifyBy</code>:</p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){
   Y0 = data[,&quot;Y0&quot;]
-  Y1 = Y0 - 1.5
+  Y1 = Y0 - 0.4 ## effect size = -0.4
   Y1[Y1&lt;0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
@@ -527,14 +529,14 @@ calc_teststat = function(W, data, ...){
 }
 CRTsearch(nrep=1e4, nt=15, nc=15, dataset=synFluData, outcome=&quot;rate&quot;, clusterID=&quot;clusterID&quot;, stratifyBy=&quot;race_aa_strata&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
 </div>
-<div id="gee" class="section level2">
-<h2>GEE</h2>
+<div id="gee" class="section level4">
+<h4>GEE</h4>
 <p>When the test statistic is the effect of the intervention estimated from a generalized estimating equation (GEE), i.e. <span class="math inline">\(\beta\)</span> from the following model:</p>
 <p><span class="math display">\[Y_{ij}^{obs} = Y_{ij}(0)(1-W_{ij}) + Y_{ij}(1) W_{i}\]</span></p>
 <p><span class="math display">\[E(Y_{ij}^{obs}/t_{ij}) = \mu_{ij}; \quad g(\mu_{ij}) = log(\mu_{ij}) = \alpha + W_{i}\beta\]</span> <span class="math display">\[\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \beta} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)   = 0\]</span> <span class="math display">\[\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \alpha} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)  = 0 \]</span> <span class="math inline">\(W_{i}\)</span> is the indicator for intervention assignment at the cluster level, <span class="math inline">\(g(\cdot)\)</span> is the log link function, <span class="math inline">\(V_i\)</span> is a the working covariance matrix of <span class="math inline">\(Y^{obs}_{i}\)</span>, <span class="math inline">\(\alpha\)</span> is a constant unknown auxiliary parameter and <span class="math inline">\(\beta\)</span> is the parameter of interest.</p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){
   Y0 = data[,&quot;Y0&quot;]
-  Y1 = Y0 - 1.5
+  Y1 = Y0 - 0.4 ## effect size = -0.4
   Y1[Y1&lt;0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
@@ -548,8 +550,8 @@ calc_teststat = function(W, data, ...){
 }
 CRTsearch(nrep=1e2, nt=15, nc=15, dataset=synFluData, outcome=&quot;count&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
 </div>
-<div id="constant-change-in-rate-after-fitting-a-zero-inflated-poisson-zip-model" class="section level2">
-<h2>Constant change in rate after fitting a zero-inflated poisson (ZIP) model</h2>
+<div id="constant-change-in-rate-after-fitting-a-zero-inflated-poisson-zip-model" class="section level4">
+<h4>Constant change in rate after fitting a zero-inflated poisson (ZIP) model</h4>
 <p>The flu study demonstrated that the number of hospitalizations includes more 0 counts than expected from a Possion distribution. We can fit a ZIP model for each nursing home.</p>
 <pre class="r"><code># estimating the amount of inflaction per cluster
 clusterID = unique(synFluData$clusterID)
@@ -591,10 +593,10 @@ ggplot(data=racedist, aes(synfluZIP$clusterP0))+
   xlab(&quot;Estimated hospitalization rate from a ZIP model among Nursing Homes&quot;)+
   theme_bw()</code></pre>
 <p><img src="data:image/png;base64,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" width="576" style="display: block; margin: auto;" /></p>
-<p>Suppose the intervention is expected to reduce the number of hospitalization for the “sub-population” of patients who is ever expected to experience hospitalization, i.e. the Possion part of the ZIP model, the potential outcome under intervention can be simulated from the feollowing <span class="math inline">\(f_1\)</span>: <span class="math display">\[f_1:  Y_{ij}(1) \sim ZIP(P_i, max(\lambda_i-0.5, 0)\}\]</span> <span class="math inline">\(P_i\)</span> and <span class="math inline">\(\lambda_i\)</span> are the proportion of zero-inflation and event rate estimated using a ZIP for nursing home <span class="math inline">\(i\)</span>.</p>
+<p>Suppose the intervention is expected to reduce the number of hospitalization for the “sub-population” of patients who is ever expected to experience hospitalization, i.e. the Possion part of the ZIP model, the potential outcome under intervention can be simulated from the feollowing <span class="math inline">\(f_1\)</span>: <span class="math display">\[f_1:  Y_{ij}(1) \sim ZIP(P_i, max(\lambda_i-0.1, 0)\}\]</span> <span class="math inline">\(P_i\)</span> and <span class="math inline">\(\lambda_i\)</span> are the proportion of zero-inflation and event rate estimated using a ZIP for nursing home <span class="math inline">\(i\)</span>.</p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){ 
   Y0 = data[,&quot;Y0&quot;]
-  lambda1 = data[,&quot;clusterLambda0&quot;] - 0.5
+  lambda1 = data[,&quot;clusterLambda0&quot;] - 0.1 ## effect size = -0.1
   lambda1 = ifelse(lambda1&lt;=0,0,lambda1)
   clusterP1 = data[,&quot;clusterP0&quot;]
   Y1 = sapply(lambda1*data[,&quot;time_years&quot;], rpois, n=1)
@@ -613,8 +615,8 @@ calc_teststat = function(W, data, ...){
 }
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome=&quot;count&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
 </div>
-<div id="infinite-study-population-vs-finite-population" class="section level2">
-<h2>Infinite study population vs finite population</h2>
+<div id="infinite-study-population-vs-finite-population" class="section level4">
+<h4>Infinite study population vs finite population</h4>
 <p>When the available data from previous studies only include a small sample of clusters (in terms of the number of clusters not the total number of individual units), sampling with raplace assumes that the study population of the new study is infinite, whereas sampling without replacement assumes that the study population of the new study is finite. To domonstrate the difference, we take a smaller data set of 16 nursing homes from the original 817.</p>
 <pre class="r"><code>set.seed(2019)
 subset16 = sample(unique(synFluData$clusterID),16)
@@ -622,7 +624,7 @@ synFluData16 = synFluData[synFluData$clusterID %in% subset16,]</code></pre>
 <p>The power for sample size from 10 to 20 is calculated in the following way. Note that when sampling without replacement, the maximum number of clusters is 16.</p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){
   Y0 = data[,&quot;Y0&quot;]
-  Y1 = Y0 - 1.5
+  Y1 = Y0 - 0.4
   Y1[Y1&lt;0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
@@ -652,15 +654,15 @@ for(n in 5:10){
 }
 power16</code></pre>
 </div>
-<div id="extend-followup-time" class="section level2">
-<h2>Extend followup time</h2>
+<div id="extend-followup-time" class="section level4">
+<h4>Extend followup time</h4>
 <p>When the study population is small, it might be interesting be investigate whether extending the follow-up time will increase the study power, especially when individual units are followed for different among of time due to lost of follow-up. Suppose the intervention in the new study is expected to reduce the rate of hospitalization by -0.2 at most, the potential outcomes with extented follow-up time <span class="math inline">\(\Delta t\)</span> can be simulated as follows:</p>
 <p><span class="math display">\[f_0:  Y_{ij}(0) \sim \big( \lambda_0 * t + Poisson(\lambda_0*\Delta t) \big) / \big( t + \Delta t\big) \]</span></p>
 <p><span class="math display">\[f_1:  Y_{ij}(1) \sim \big( max(\lambda_0-0.2,0) * t + Poisson(max(\lambda_0-0.2,0)*\Delta t) \big) / \big( t + \Delta t\big)\]</span></p>
 <p>If the previous study data suggests that a patient were not followed till the end of the study, it does not make sense to extend the follow-up time for them. So <span class="math inline">\(\Delta t =0\)</span> for patients who were not followed for a full 211 days in the flu study. Users should specify a lostfollowup argument in <code>CRTsearch</code> as follows:</p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){
   Y0 = data[,&quot;Y0&quot;]
-  Y1 = Y0 - 1.5
+  Y1 = Y0 - 0.4 ## effect size = -0.4
   Y1[ Y1 &lt; 0 ] = 0
   extendtime = 0.25
   Y0count = Y0*data[,&quot;time_years&quot;]

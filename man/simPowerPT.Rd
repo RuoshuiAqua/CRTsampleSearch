@@ -5,7 +5,7 @@
 \title{estimate hypothesis test power for a CRT using simulation}
 \usage{
 simPowerPT(nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat,
-  uppersided = NULL, ...)
+  uppersided = NULL, Npermutationtest = 100, ...)
 }
 \arguments{
 \item{nrep}{the number of replications of the simulation procedure for generating the pseudo study data, default is \code{"1000"})}
@@ -16,7 +16,8 @@ simPowerPT(nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat,
 
 \item{alpha}{type-1 errer, default at 0.05}
 
-\item{FUN_TestStat}{user-defined function for the test statistics, should take in two arguments, W=the treatment/control assignment indicator at the individual level; data=the dataset which includes the two potential outcomes at least}
+\item{FUN_TestStat}{user-defined function for the test statistics, should take in two arguments, W=the treatment/control assignment indicator at the individual level; data=the dataset which includes the two potential outcomes at least
+#' @param Npermutationtest the number of replications when estimating the permutation test power}
 
 \item{uppersided}{if a uppersided test is of interest, default at NULL (two-sided test), FALSE if a lowersided test if of interest}
 

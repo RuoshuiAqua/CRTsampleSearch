@@ -76,7 +76,7 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
   
   ## calculate power with the initial sample size
   if(PermutationTest){
-    power = median(unlist(lapply(1:Npermutationtest, function(i, ...){simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)}, ...)))
+    power = simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha,  ...)
   }else{
     power = simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
   }
@@ -99,7 +99,7 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
       }
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power = median(unlist(lapply(1:Npermutationtest, function(i, ...){simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)}, ...)))
+        power = simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
       }else{
         power = simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
       }
@@ -115,7 +115,7 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
       }
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power = median(unlist(lapply(1:Npermutationtest, function(i, ...){simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)}, ...)))
+        power = simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
       }else{
         power = simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
       }
@@ -214,6 +214,7 @@ simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL,
 #' @param alpha type-1 errer, default at 0.05 
 #' @param uppersided if a uppersided test is of interest, default at NULL (two-sided test), FALSE if a lowersided test if of interest
 #' @param FUN_TestStat user-defined function for the test statistics, should take in two arguments, W=the treatment/control assignment indicator at the individual level; data=the dataset which includes the two potential outcomes at least
+#' #' @param Npermutationtest the number of replications when estimating the permutation test power
 #' @inheritParams simulate_CRT
 #' 
 #' @return a vector (length=1) for the estimated power
@@ -248,24 +249,33 @@ simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL,
 #'}
 #'
 #' @export
-simPowerPT = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, ...){
-  ## data generating mechanism
-  CRTsample = simulate_CRT(nt=nt, nc=nc, ...)
-  ## assignement mechanism
-  mcCores = parallel::detectCores()
-  assignment = parallel::mclapply(1:nrep, function(i, ...){ assignment_CRT(data=CRTsample, nt=nt, nc=nc, ...)}, mc.cores=mcCores-1)
-  assignment = as.data.frame(assignment)
-  
-  ## Test statistics under H0
-  CRTsampleH0 = CRTsample
-  CRTsampleH0$Y1 = CRTsampleH0$Y0
-  TH0 = parallel::mclapply(1:nrep, function(i ,...){ FUN_TestStat(W=assignment[,i], data=CRTsampleH0, ...)}, mc.cores=mcCores-1)
-  ## Test statistics under Ha
-  THa = parallel::mclapply(1:nrep, function(i ,...){ FUN_TestStat(W=assignment[,i], data=CRTsample, ...)}, mc.cores=mcCores-1)
-  
-  TH0 = unlist(TH0)
-  THa = unlist(THa)
-  power = simPowerTH0Ha(TH0=TH0, THa=THa, alpha=alpha, ...)
+simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersided = NULL, Npermutationtest=100, ...){
+  powersPT = lapply(1:Npermutationtest, function(i, ...) {
+    CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
+    mcCores = parallel::detectCores()
+    assignment = parallel::mclapply(1:nrep, function(i, 
+                                                     ...) {
+      assignment_CRT(data = CRTsample, nt = nt, nc = nc, 
+                     ...)
+    }, mc.cores = mcCores - 1)
+    assignment = as.data.frame(assignment)
+    CRTsampleH0 = CRTsample
+    CRTsampleH0$Y1 = CRTsampleH0$Y0
+    TH0 = parallel::mclapply(1:nrep, function(i, ...) {
+      FUN_TestStat(W = assignment[, i], data = CRTsampleH0, 
+                   ...)
+    }, mc.cores = mcCores - 1)
+    THa = parallel::mclapply(1:nrep, function(i, ...) {
+      FUN_TestStat(W = assignment[, i], data = CRTsample, 
+                   ...)
+    }, mc.cores = mcCores - 1)
+    TH0 = unlist(TH0)
+    THa = unlist(THa)
+    power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha, 
+                          ...)
+    return(power)
+  }, ...)
+  power = median(unlist(powersPT))
   return(power)
 }
 
