@@ -250,7 +250,8 @@ simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL,
 #'
 #' @export
 simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersided = NULL, Npermutationtest=100, ...){
-  powersPT = lapply(1:Npermutationtest, function(i, ...) {
+  mcCores = parallel::detectCores()
+  powersPT = parallel::mclapply(1:Npermutationtest, function(i, ...) {
     CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
     mcCores = parallel::detectCores()
     assignment = parallel::mclapply(1:nrep, function(i, 
@@ -274,7 +275,7 @@ simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersi
     power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha, 
                           ...)
     return(power)
-  }, ...)
+  }, ..., mc.cores = mcCores - 1)
   power = median(unlist(powersPT))
   return(power)
 }
