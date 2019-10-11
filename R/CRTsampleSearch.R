@@ -250,36 +250,57 @@ simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL,
 #'
 #' @export
 simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersided = NULL, Npermutationtest=100, ...){
-  mcCores = parallel::detectCores()
-  powersPT = parallel::mclapply(1:Npermutationtest, function(i, ...) {
+  powersPT=NULL
+  for(npt in 1:Npermutationtest){
     CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
     mcCores = parallel::detectCores()
-    assignment = parallel::mclapply(1:nrep, function(i, 
-                                                     ...) {
-      assignment_CRT(data = CRTsample, nt = nt, nc = nc, 
-                     ...)
+    assignment = parallel::mclapply(1:nrep, function(i, ...) {
+      assignment_CRT(data = CRTsample, nt = nt, nc = nc, ...)
     }, mc.cores = mcCores - 1)
     assignment = as.data.frame(assignment)
     CRTsampleH0 = CRTsample
     CRTsampleH0$Y1 = CRTsampleH0$Y0
     TH0 = parallel::mclapply(1:nrep, function(i, ...) {
-      FUN_TestStat(W = assignment[, i], data = CRTsampleH0, 
-                   ...)
+      FUN_TestStat(W = assignment[, i], data = CRTsampleH0, ...)
     }, mc.cores = mcCores - 1)
     THa = parallel::mclapply(1:nrep, function(i, ...) {
-      FUN_TestStat(W = assignment[, i], data = CRTsample, 
-                   ...)
-    }, mc.cores = mcCores - 1)
+      FUN_TestStat(W = assignment[, i], data = CRTsample, ...) }
+      , mc.cores = mcCores - 1)
     TH0 = unlist(TH0)
     THa = unlist(THa)
-    power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha, 
-                          ...)
-    return(power)
-  }, ..., mc.cores = mcCores - 1)
+    power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha,...)
+    powersPT = c(powersPT, power)
+  }
   power = median(unlist(powersPT))
   return(power)
 }
 
+##mcCores = parallel::detectCores()
+##powersPT = parallel::mclapply(1:Npermutationtest, function(i, ...) {
+##  CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
+##  mcCores = parallel::detectCores()
+##  assignment = parallel::mclapply(1:nrep, function(i, 
+##                                                   ...) {
+##    assignment_CRT(data = CRTsample, nt = nt, nc = nc, 
+##                   ...)
+##  }, mc.cores = mcCores - 1)
+##  assignment = as.data.frame(assignment)
+##  CRTsampleH0 = CRTsample
+##  CRTsampleH0$Y1 = CRTsampleH0$Y0
+##  TH0 = parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W = assignment[, i], data = CRTsampleH0, 
+##                 ...)
+##  }, mc.cores = mcCores - 1)
+##  THa = parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W = assignment[, i], data = CRTsample, 
+##                 ...)
+##  }, mc.cores = mcCores - 1)
+##  TH0 = unlist(TH0)
+##  THa = unlist(THa)
+##  power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha, 
+##                        ...)
+##  return(power)
+##}, ..., mc.cores = mcCores - 1)
 
 #' simulate a smaple CRT study data
 #' 

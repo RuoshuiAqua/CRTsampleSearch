@@ -70,7 +70,8 @@ N_1
 ## formula with correlation
 DE2 = 1+(((m_sd/m)^2+1)*m-1)*ICC ## Design Effect
 N_2 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE2/m)
-N_2
+re = c(re,N_2)
+
 DE3 = 1/(1-(m_sd/m)^2*m/(m+(1-ICC)/ICC)*(1-m/(m+(1-ICC)/ICC))) ## Design Effect
 N_3 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE1*DE3/m)
 N_3
