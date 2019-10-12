@@ -271,7 +271,7 @@ simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersi
     power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha,...)
     powersPT = c(powersPT, power)
   }
-  power = median(unlist(powersPT))
+  power = median(powersPT)
   return(power)
 }
 
