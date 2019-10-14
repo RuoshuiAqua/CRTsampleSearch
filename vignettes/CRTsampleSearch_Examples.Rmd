@@ -1,7 +1,7 @@
 ---
 title: "CRTsampleSearch_Examples"
 author: "Ruoshui Zhai"
-date: "October 6, 2019"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
@@ -63,17 +63,18 @@ ICC = 1 / 11 ## inter-cluster correlation
 alpha = 0.05
 minpower=0.8
 delta = 1
+N = sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2/m
 DE1 = 1+(m-1)*ICC ## Design Effect
-N_1 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE1/m)
+N_1 = 2*ceiling(2*N*DE1)
 N_1
 
 ## formula with correlation
 DE2 = 1+(((m_sd/m)^2+1)*m-1)*ICC ## Design Effect
-N_2 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE2/m)
-re = c(re,N_2)
+N_2 = 2*ceiling(2*N*DE2)
+N_2
 
-DE3 = 1/(1-(m_sd/m)^2*m/(m+(1-ICC)/ICC)*(1-m/(m+(1-ICC)/ICC))) ## Design Effect
-N_3 = 2*ceiling(2*sigma2*(qnorm(alpha/2)+qnorm(1-minpower))^2/delta^2*DE1*DE3/m)
+DE3 = 1/(1-(m_sd/m)^2*d3*(1-d3)) ## Design Effect
+N_3 = 2*ceiling(2*N*DE1*DE3)
 N_3
 ```
 
@@ -140,7 +141,7 @@ sim_cluster_size = function(N, ...){
 
 ## binary outcome: beta and bernoulli Two-level Model + dependent bernoulli increase
 sim_potential_outcomes = function(m,...){
-  pbar=rbeta(1,shape1=1, shape2=5)
+  pbar=rbeta(1,shape1=1, shape2=4)
   Y0= rbinom(m, size=1, prob=pbar ) 
   Y1 = rbinom(m, size=1, prob=0.2)*(1-Y0) + Y0
   re = cbind(Y0, Y1)
@@ -390,15 +391,17 @@ $W_{i}$ is the indicator for intervention assignment at the cluster level, $g(\c
 ```{r GEE, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
   Y0 = data[,"Y0"]
-  Y1 = Y0 - 0.4 ## effect size = -0.4
-  Y1[Y1<0] = 0
+  lambda0 = data[,"rate"]
+  lambda1 = lambda0 - 0.4 ## effect size = -0.4
+  lambda1[lambda1<0] = 0
+  Y1 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
   re = cbind(Y0, Y1)
   colnames(re) = list("Y0", "Y1")
   return(re)
 }
 calc_teststat = function(W, data, ...){
   outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
-  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable")
+  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable", silent=TRUE)
   re = preg$coef[2]
   return(re)
 }
