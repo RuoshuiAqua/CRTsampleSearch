@@ -298,7 +298,7 @@ The synthetic flu data, similar to the original one, includes data from `r lengt
 head(synFluData)
 ```
 
-#### Constant change in count or rate
+### Constant change in count or rate
 
 Suppose the intervention in the new study is expected to reduce the number of hospitalization at most one time (some patients never experienced hospitalization in the flu study), the potential outcome under intervention can be simulated from the following $f_1$:
 $$f_1:  Y_{ij}(1) = max(Y_{ij}(0)-1, 0)$$
@@ -343,8 +343,38 @@ calc_teststat = function(W, data, ...){
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
+#### GEE 
+When the test statistic is the effect of the intervention estimated from a generalized estimating equation (GEE), i.e. $\beta$ from the following model:
 
-#### Stratified randomization
+$$Y_{ij}^{obs} = Y_{ij}(0)(1-W_{ij}) + Y_{ij}(1) W_{i}$$
+
+$$E(Y_{ij}^{obs}/t_{ij}) = \mu_{ij}; \quad g(\mu_{ij}) = log(\mu_{ij}) = \alpha + W_{i}\beta$$
+$$\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \beta} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)	= 0$$
+$$\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \alpha} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)	= 0 $$
+$W_{i}$ is the indicator for intervention assignment at the cluster level, $g(\cdot)$ is the log link function, $V_i$ is a the working covariance matrix of $Y^{obs}_{i}$, $\alpha$ is a constant unknown auxiliary parameter and $\beta$ is the parameter of interest.
+
+```{r GEE, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  lambda0 = data[,"rate"]
+  lambda1 = lambda0 - 0.4 ## effect size = -0.4
+  lambda1[lambda1<0] = 0
+  Y1 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
+  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable", silent=TRUE)
+  re = preg$coef[2]
+  return(re)
+}
+CRTsearch(nrep=1e2, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
+
+### Stratified randomization
 As the flu study data suggests, the percentage of aferican americans varies among nuring homes (clusters). 
 ```{r race_fig, fig.height = 3, fig.width = 5, fig.align = "center"}
 library(ggplot2)
@@ -378,38 +408,9 @@ calc_teststat = function(W, data, ...){
 CRTsearch(nrep=1e4, nt=15, nc=15, dataset=synFluData, outcome="rate", clusterID="clusterID", stratifyBy="race_aa_strata", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
-#### GEE 
-When the test statistic is the effect of the intervention estimated from a generalized estimating equation (GEE), i.e. $\beta$ from the following model:
-
-$$Y_{ij}^{obs} = Y_{ij}(0)(1-W_{ij}) + Y_{ij}(1) W_{i}$$
-
-$$E(Y_{ij}^{obs}/t_{ij}) = \mu_{ij}; \quad g(\mu_{ij}) = log(\mu_{ij}) = \alpha + W_{i}\beta$$
-$$\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \beta} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)	= 0$$
-$$\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \alpha} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)	= 0 $$
-$W_{i}$ is the indicator for intervention assignment at the cluster level, $g(\cdot)$ is the log link function, $V_i$ is a the working covariance matrix of $Y^{obs}_{i}$, $\alpha$ is a constant unknown auxiliary parameter and $\beta$ is the parameter of interest.
-
-```{r GEE, eval=FALSE}
-sim_potential_outcomes = function(data, ...){
-  Y0 = data[,"Y0"]
-  lambda0 = data[,"rate"]
-  lambda1 = lambda0 - 0.4 ## effect size = -0.4
-  lambda1[lambda1<0] = 0
-  Y1 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
-  re = cbind(Y0, Y1)
-  colnames(re) = list("Y0", "Y1")
-  return(re)
-}
-calc_teststat = function(W, data, ...){
-  outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
-  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable", silent=TRUE)
-  re = preg$coef[2]
-  return(re)
-}
-CRTsearch(nrep=1e2, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
-```
 
 
-#### Constant change in rate after fitting a zero-inflated poisson (ZIP) model
+### Constant change in rate after fitting a zero-inflated poisson (ZIP) model
 The flu study demonstrated that the number of hospitalizations includes more 0 counts than expected from a Possion distribution. We can fit a ZIP model for each nursing home.
 ```{r ZIP_model}
 # estimating the amount of inflaction per cluster
@@ -471,7 +472,28 @@ calc_teststat = function(W, data, ...){
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
-
+#### GEE when intervention effect the possion process in a ZIP model
+```{r GEE2, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  lambda0 = data[,"clusterLambda0"]
+  lambda1 = lambda0 - 0.1 ## effect size = -0.4
+  lambda1[lambda1<0] = 0
+  Y11 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
+  Y10 = unlist(lapply(data[,"clusterP0"], rbinom, size=1, n=1))
+  Y1 = Y11*Y10
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
+  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable", silent=TRUE)
+  re = preg$coef[2]
+  return(re)
+}
+CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
 
 #### Infinite study population vs finite population
 When the available data from previous studies only include a small sample of clusters (in terms of the number of clusters not the total number of individual units), sampling with raplace assumes that the study population of the new study is infinite, whereas sampling without replacement assumes that the study population of the new study is finite. To domonstrate the difference, we take a smaller data set of 16 nursing homes from the original 817.

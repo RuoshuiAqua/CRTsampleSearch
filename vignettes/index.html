@@ -179,7 +179,7 @@ summary {
 
 <h1 class="title toc-ignore">CRTsampleSearch_Examples</h1>
 <h4 class="author">Ruoshui Zhai</h4>
-<h4 class="date">14 October, 2019</h4>
+<h4 class="date">15 October, 2019</h4>
 
 </div>
 
@@ -464,8 +464,8 @@ synFluData = read.csv(synFluData_loc)</code></pre>
 #&gt; 5              3
 #&gt; 6              3</code></pre>
 </div>
-<div id="constant-change-in-count-or-rate" class="section level4">
-<h4>Constant change in count or rate</h4>
+<div id="constant-change-in-count-or-rate" class="section level3">
+<h3>Constant change in count or rate</h3>
 <p>Suppose the intervention in the new study is expected to reduce the number of hospitalization at most one time (some patients never experienced hospitalization in the flu study), the potential outcome under intervention can be simulated from the following <span class="math inline">\(f_1\)</span>: <span class="math display">\[f_1:  Y_{ij}(1) = max(Y_{ij}(0)-1, 0)\]</span></p>
 <pre class="r"><code>sim_potential_outcomes = function(data, ...){
   Y0 = data[,&quot;Y0&quot;]
@@ -500,9 +500,32 @@ calc_teststat = function(W, data, ...){
   return(re)
 }
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome=&quot;rate&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
+<div id="gee" class="section level4">
+<h4>GEE</h4>
+<p>When the test statistic is the effect of the intervention estimated from a generalized estimating equation (GEE), i.e. <span class="math inline">\(\beta\)</span> from the following model:</p>
+<p><span class="math display">\[Y_{ij}^{obs} = Y_{ij}(0)(1-W_{ij}) + Y_{ij}(1) W_{i}\]</span></p>
+<p><span class="math display">\[E(Y_{ij}^{obs}/t_{ij}) = \mu_{ij}; \quad g(\mu_{ij}) = log(\mu_{ij}) = \alpha + W_{i}\beta\]</span> <span class="math display">\[\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \beta} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)   = 0\]</span> <span class="math display">\[\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \alpha} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)  = 0 \]</span> <span class="math inline">\(W_{i}\)</span> is the indicator for intervention assignment at the cluster level, <span class="math inline">\(g(\cdot)\)</span> is the log link function, <span class="math inline">\(V_i\)</span> is a the working covariance matrix of <span class="math inline">\(Y^{obs}_{i}\)</span>, <span class="math inline">\(\alpha\)</span> is a constant unknown auxiliary parameter and <span class="math inline">\(\beta\)</span> is the parameter of interest.</p>
+<pre class="r"><code>sim_potential_outcomes = function(data, ...){
+  Y0 = data[,&quot;Y0&quot;]
+  lambda0 = data[,&quot;rate&quot;]
+  lambda1 = lambda0 - 0.4 ## effect size = -0.4
+  lambda1[lambda1&lt;0] = 0
+  Y1 = unlist(lapply(lambda1*data[,&quot;time_years&quot;], rpois, n=1))
+  re = cbind(Y0, Y1)
+  colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  outcome = data[,&quot;Y1&quot;]*W + data[,&quot;Y0&quot;]*(1-W)
+  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = &quot;poisson&quot;, corstr=&quot;exchangeable&quot;, silent=TRUE)
+  re = preg$coef[2]
+  return(re)
+}
+CRTsearch(nrep=1e2, nt=15, nc=15, dataset=synFluData, outcome=&quot;count&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
 </div>
-<div id="stratified-randomization" class="section level4">
-<h4>Stratified randomization</h4>
+</div>
+<div id="stratified-randomization" class="section level3">
+<h3>Stratified randomization</h3>
 <p>As the flu study data suggests, the percentage of aferican americans varies among nuring homes (clusters).</p>
 <pre class="r"><code>library(ggplot2)
 racedist = synFluData[!duplicated(synFluData$clusterID),c(&quot;clusterID&quot;,&quot;race_aa_pct&quot;)]
@@ -531,31 +554,8 @@ calc_teststat = function(W, data, ...){
 }
 CRTsearch(nrep=1e4, nt=15, nc=15, dataset=synFluData, outcome=&quot;rate&quot;, clusterID=&quot;clusterID&quot;, stratifyBy=&quot;race_aa_strata&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
 </div>
-<div id="gee" class="section level4">
-<h4>GEE</h4>
-<p>When the test statistic is the effect of the intervention estimated from a generalized estimating equation (GEE), i.e. <span class="math inline">\(\beta\)</span> from the following model:</p>
-<p><span class="math display">\[Y_{ij}^{obs} = Y_{ij}(0)(1-W_{ij}) + Y_{ij}(1) W_{i}\]</span></p>
-<p><span class="math display">\[E(Y_{ij}^{obs}/t_{ij}) = \mu_{ij}; \quad g(\mu_{ij}) = log(\mu_{ij}) = \alpha + W_{i}\beta\]</span> <span class="math display">\[\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \beta} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)   = 0\]</span> <span class="math display">\[\sum_{i=1}^{n}\Big( \frac{\partial \mu_{i}}{\partial \alpha} \Big)^T V_i^{-1}\big(Y_i^{obs} - \mu_i\big)  = 0 \]</span> <span class="math inline">\(W_{i}\)</span> is the indicator for intervention assignment at the cluster level, <span class="math inline">\(g(\cdot)\)</span> is the log link function, <span class="math inline">\(V_i\)</span> is a the working covariance matrix of <span class="math inline">\(Y^{obs}_{i}\)</span>, <span class="math inline">\(\alpha\)</span> is a constant unknown auxiliary parameter and <span class="math inline">\(\beta\)</span> is the parameter of interest.</p>
-<pre class="r"><code>sim_potential_outcomes = function(data, ...){
-  Y0 = data[,&quot;Y0&quot;]
-  lambda0 = data[,&quot;rate&quot;]
-  lambda1 = lambda0 - 0.4 ## effect size = -0.4
-  lambda1[lambda1&lt;0] = 0
-  Y1 = unlist(lapply(lambda1*data[,&quot;time_years&quot;], rpois, n=1))
-  re = cbind(Y0, Y1)
-  colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
-  return(re)
-}
-calc_teststat = function(W, data, ...){
-  outcome = data[,&quot;Y1&quot;]*W + data[,&quot;Y0&quot;]*(1-W)
-  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = &quot;poisson&quot;, corstr=&quot;exchangeable&quot;, silent=TRUE)
-  re = preg$coef[2]
-  return(re)
-}
-CRTsearch(nrep=1e2, nt=15, nc=15, dataset=synFluData, outcome=&quot;count&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
-</div>
-<div id="constant-change-in-rate-after-fitting-a-zero-inflated-poisson-zip-model" class="section level4">
-<h4>Constant change in rate after fitting a zero-inflated poisson (ZIP) model</h4>
+<div id="constant-change-in-rate-after-fitting-a-zero-inflated-poisson-zip-model" class="section level3">
+<h3>Constant change in rate after fitting a zero-inflated poisson (ZIP) model</h3>
 <p>The flu study demonstrated that the number of hospitalizations includes more 0 counts than expected from a Possion distribution. We can fit a ZIP model for each nursing home.</p>
 <pre class="r"><code># estimating the amount of inflaction per cluster
 clusterID = unique(synFluData$clusterID)
@@ -618,6 +618,27 @@ calc_teststat = function(W, data, ...){
   return(re)
 }
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome=&quot;count&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
+<div id="gee-when-intervention-effect-the-possion-process-in-a-zip-model" class="section level4">
+<h4>GEE when intervention effect the possion process in a ZIP model</h4>
+<pre class="r"><code>sim_potential_outcomes = function(data, ...){
+  Y0 = data[,&quot;Y0&quot;]
+  lambda0 = data[,&quot;clusterLambda0&quot;]
+  lambda1 = lambda0 - 0.1 ## effect size = -0.4
+  lambda1[lambda1&lt;0] = 0
+  Y11 = unlist(lapply(lambda1*data[,&quot;time_years&quot;], rpois, n=1))
+  Y10 = unlist(lapply(data[,&quot;clusterP0&quot;], rbinom, size=1, n=1))
+  Y1 = Y11*Y10
+  re = cbind(Y0, Y1)
+  colnames(re) = list(&quot;Y0&quot;, &quot;Y1&quot;)
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  outcome = data[,&quot;Y1&quot;]*W + data[,&quot;Y0&quot;]*(1-W)
+  preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = &quot;poisson&quot;, corstr=&quot;exchangeable&quot;, silent=TRUE)
+  re = preg$coef[2]
+  return(re)
+}
+CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome=&quot;count&quot;, clusterID=&quot;clusterID&quot;, replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)</code></pre>
 </div>
 <div id="infinite-study-population-vs-finite-population" class="section level4">
 <h4>Infinite study population vs finite population</h4>
@@ -697,6 +718,7 @@ for(addtime in seq(0, 1, 0.25)){
   power_extendtime = rbind(power_extendtime, cbind(addtime, power_i))
 }
 power_extendtime</code></pre>
+</div>
 </div>
 </div>
 
