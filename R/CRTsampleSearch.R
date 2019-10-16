@@ -196,9 +196,9 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
 #' @export
 simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, ...){
   mcCores = parallel::detectCores()
-  if(nrep>1e2){
+  if(nrep>1e3){
     TH0THa = TH0THa_i = NULL
-    for(nrep_i in 1:ceiling(nrep/1e2)){
+    for(nrep_i in 1:ceiling(nrep/1e3)){
       rm(TH0THa_i)
       gc()  # free up memory before forking
       TH0THa_i = parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores-1)
