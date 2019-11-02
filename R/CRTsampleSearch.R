@@ -206,11 +206,13 @@ simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL,
   ##    TH0THa = rbind(TH0THa, TH0THa_i)
   ##  }
   ##}else{
-  ##  gc()  # free up memory before forking
+    gc()  # free up memory before forking
     TH0THa = parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores-1)
     TH0THa = plyr::ldply(TH0THa, data.frame)
   ##}
   power = simPowerTH0Ha(TH0=TH0THa$TH0, THa=TH0THa$THa, alpha=alpha, ...)
+  rm(TH0THa)
+  gc()
   return(power)
 }  
 

@@ -343,6 +343,27 @@ calc_teststat = function(W, data, ...){
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
+
+#### Generalized Linear Mixed Effect Model
+```{r glmer, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  Y1 = Y0 - 0.4 ## effect size = -0.4
+  Y1[Y1<0] = 0
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
+  AnaData = data.frame(cbind(outcome, W, data$cID, data$time_years))
+  preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=Anadata)
+  re = coef(preg)$V3$W[1]
+  return(re)
+}
+CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
 #### GEE 
 When the test statistic is the effect of the intervention estimated from a generalized estimating equation (GEE), i.e. $\beta$ from the following model:
 
@@ -472,6 +493,7 @@ calc_teststat = function(W, data, ...){
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
+
 #### GEE when intervention effect the possion process in a ZIP model
 ```{r GEE2, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
@@ -494,6 +516,31 @@ calc_teststat = function(W, data, ...){
 }
 CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
+
+#### Generalized Linear Mixed Effect Model when intervention effect the possion process in a ZIP model
+```{r glmer2, eval=FALSE}
+sim_potential_outcomes = function(data, ...){
+  Y0 = data[,"Y0"]
+  lambda0 = data[,"clusterLambda0"]
+  lambda1 = lambda0 - 0.1 ## effect size = -0.4
+  lambda1[lambda1<0] = 0
+  Y11 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
+  Y10 = unlist(lapply(data[,"clusterP0"], rbinom, size=1, n=1))
+  Y1 = Y11*Y10
+  re = cbind(Y0, Y1)
+  colnames(re) = list("Y0", "Y1")
+  return(re)
+}
+calc_teststat = function(W, data, ...){
+  outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
+  AnaData = data.frame(cbind(outcome, W, data$cID, data$time_years))
+  preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=Anadata)
+  re = coef(preg)$V3$W[1]
+  return(re)
+}
+CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+```
+
 
 #### Infinite study population vs finite population
 When the available data from previous studies only include a small sample of clusters (in terms of the number of clusters not the total number of individual units), sampling with raplace assumes that the study population of the new study is infinite, whereas sampling without replacement assumes that the study population of the new study is finite. To domonstrate the difference, we take a smaller data set of 16 nursing homes from the original 817.

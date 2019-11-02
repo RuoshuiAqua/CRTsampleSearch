@@ -9,6 +9,7 @@ Imports:
 	parallel,
 	pscl,
 	plyr,
+	lme4,
 	gee,
 	lmtest
 License: GPL-3
