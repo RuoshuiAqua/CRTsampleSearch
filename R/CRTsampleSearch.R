@@ -526,21 +526,23 @@ assignment_CRT = function(nt, nc, data, stratifyBy=NULL, ...){
         nts = floor(SizeStrata[is] * (nt/(nc+nt)))
         ncs = floor(SizeStrata[is] * (nc/(nc+nt)))
         ns = SizeStrata[is] - nts - ncs
-        As = c(rep(1,ncs),rep(0, nts), rbinom(ns, 1, prob=1/2))
+        As1 = rep(0, ncs+nts)
+        As1_TXTid=sample(1:(ncs+nts), nts)
+        As1[As1_TXTid] = 1
+        As = c(As1, rbinom(ns, 1, prob=nt/(nc+nt)))
         ClusterAssignment = c(ClusterAssignment, As)
       }
     }
-##      while(sum(ClusterAssignment)!=nt){
-##        ClusterAssignment = unlist(lapply(SizeStrata, function(n){ rbinom(n, 1, prob=1/2) }))
-##      }
-      cIDorderByStrata = unique(data[,"cID"][order(data[,stratifyBy])])
-      ClusterAssignment = ClusterAssignment[cIDorderByStrata]
-##    }
+    tmp = data[!duplicated(data$cID),c("cID",stratifyBy)]
+    tmp = tmp[order(tmp[,stratifyBy]),]
+    tmp$A = ClusterAssignment
+    tmp = tmp[order(tmp[,"cID"]),]
+    ClusterAssignment = tmp$A
   }else{
     stop(paste(stratifyBy, "is not found in the data"))
   }
   cluster_size = as.data.frame(table(data$cID))$Freq
-  assignment = unlist(sapply(1:length(cluster_size), function(x){rep(ClusterAssignment[x],cluster_size[x])})) 
+  assignment = rep(ClusterAssignment, cluster_size)
   return(assignment)
 }
 

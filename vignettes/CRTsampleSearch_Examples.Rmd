@@ -438,8 +438,7 @@ calc_teststat = function(W, data, ...){
   ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
   return(re)
 }
-debug(CRTsearch)
-CRTsearch(nrep=5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", stratifyBy="race_aa_strata", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+CRTsearch(nrep=1e4, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", stratifyBy="race_aa_strata", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
 
