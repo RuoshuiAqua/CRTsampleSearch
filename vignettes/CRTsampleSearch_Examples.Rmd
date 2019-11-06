@@ -282,10 +282,6 @@ The goal of this section is to show you how to use CRTsampleSearch to estimate t
 
 <!-- The package includes two main funtions, `CRTsearch` and `calc_power` and they can be used in two types of settings: 1) when the input data distributions are of known forms, e.g. normal, bernoulli, or poisson distributions; 2) when the input data distributions are emperical distributions composited by, for exampe, data collected in other studies.  --> 
 
-```{r, message=FALSE}
-devtools::install_github("RuoshuiAqua/CRTsampleSearch")
-library(CRTsampleSearch)
-```
 
 #### The synthetic Flu Data
 ```{r load_data, echo=TRUE, results = 'hide'}
@@ -316,19 +312,24 @@ calc_teststat = function(W, data, ...){
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
+  ## pool rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  ## person-level rates
+  ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
   return(re)
 }
-CRTsearch(nrep=10, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
-If we are interested in the effet of the intervention in terms of changes in hospitaliztion rate, for example suppose the intervention in the new study is expected to reduce the patient-level hospitalization rate by at most 0.4, the potential outcome under intervention can be simulated from the following $f_1$:
-$$f_1:  Y_{ij}(1) = max(Y_{ij}(0)-0.4, 0)$$
+If we are interested in the effet of the intervention in terms of changes in hospitaliztion rate, for example suppose the intervention in the new study is expected to reduce the patient-level hospitalization rate by at most 0.5, the potential outcome under intervention can be simulated from the following $f_1$:
+$$f_1:  Y_{ij}(1) = max(Y_{ij}(0)-0.5, 0)$$
 ```{r rate_change, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  lambda0 = data[,"rate"]
+  lambda1 = lambda0 - 0.5 ## effect size = -0.5
+  lambda1[lambda1<0] = 0
+  Y1 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
   Y0 = data[,"Y0"]
-  Y1 = Y0 - 0.4 ## effect size = -0.4
-  Y1[Y1<0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list("Y0", "Y1")
   return(re)
@@ -337,10 +338,13 @@ calc_teststat = function(W, data, ...){
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  ## pool rates
+  re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  ## person-level rates
+  ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
   return(re)
 }
-CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
 
@@ -348,8 +352,10 @@ CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="rate", clusterID=
 ```{r glmer, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
   Y0 = data[,"Y0"]
-  Y1 = Y0 - 0.4 ## effect size = -0.4
-  Y1[Y1<0] = 0
+  lambda0 = data[,"rate"]
+  lambda1 = lambda0 - 0.4 ## effect size = -0.4
+  lambda1[lambda1<0] = 0
+  Y1 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
   re = cbind(Y0, Y1)
   colnames(re) = list("Y0", "Y1")
   return(re)
@@ -357,11 +363,11 @@ sim_potential_outcomes = function(data, ...){
 calc_teststat = function(W, data, ...){
   outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
   AnaData = data.frame(cbind(outcome, W, data$cID, data$time_years))
-  preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=Anadata)
+  preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=AnaData)
   re = coef(preg)$V3$W[1]
   return(re)
 }
-CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+CRTsearch(nrep=1e3, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
 #### GEE 
@@ -391,7 +397,7 @@ calc_teststat = function(W, data, ...){
   re = preg$coef[2]
   return(re)
 }
-CRTsearch(nrep=1e2, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+CRTsearch(nrep=1e3, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
 
@@ -404,17 +410,20 @@ ggplot(data=racedist, aes(racedist$race_aa_pct))+
   geom_histogram(binwidth=0.01, alpha=0.7)+
   xlab("Percentage of African Americans per Nursing Home")+
   theme_bw()+ 
-  geom_vline(xintercept=quantile(racedist$race_aa_pct,0.33))+
-  geom_vline(xintercept=quantile(racedist$race_aa_pct,0.67))
+  geom_vline(xintercept=quantile(racedist$race_aa_pct,0.25))+
+  geom_vline(xintercept=quantile(racedist$race_aa_pct,0.5))+
+  geom_vline(xintercept=quantile(racedist$race_aa_pct,0.75))
 ```
 
 Suppose the new study adopts stratified randomization, i.e. randomizing sampled clusters within each statum defined by the percentage of african americans in the nursing home, `CRTsampleSearch` should be implemented in the following way using the argument `stratifyBy`:   
 
 ```{r stratified, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  lambda0 = data[,"rate"]
+  lambda1 = lambda0 - 0.5 ## effect size = -0.5
+  lambda1[lambda1<0] = 0
+  Y1 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
   Y0 = data[,"Y0"]
-  Y1 = Y0 - 0.4 ## effect size = -0.4
-  Y1[Y1<0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list("Y0", "Y1")
   return(re)
@@ -423,10 +432,14 @@ calc_teststat = function(W, data, ...){
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  ## pool rates
+  re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  ## person-level rates
+  ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
   return(re)
 }
-CRTsearch(nrep=1e4, nt=15, nc=15, dataset=synFluData, outcome="rate", clusterID="clusterID", stratifyBy="race_aa_strata", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+debug(CRTsearch)
+CRTsearch(nrep=5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", stratifyBy="race_aa_strata", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
 
@@ -487,7 +500,10 @@ calc_teststat = function(W, data, ...){
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
+  ## pool rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  ## person-level rates
+  ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
   return(re)
 }
 CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
@@ -514,7 +530,7 @@ calc_teststat = function(W, data, ...){
   re = preg$coef[2]
   return(re)
 }
-CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+CRTsearch(nrep=1e3, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
 #### Generalized Linear Mixed Effect Model when intervention effect the possion process in a ZIP model
@@ -534,11 +550,11 @@ sim_potential_outcomes = function(data, ...){
 calc_teststat = function(W, data, ...){
   outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
   AnaData = data.frame(cbind(outcome, W, data$cID, data$time_years))
-  preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=Anadata)
+  preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=AnaData)
   re = coef(preg)$V3$W[1]
   return(re)
 }
-CRTsearch(nrep=1e5, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+CRTsearch(nrep=1e3, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
 
@@ -553,9 +569,11 @@ synFluData16 = synFluData[synFluData$clusterID %in% subset16,]
 The power for sample size from 10 to 20 is calculated in the following way. Note that when sampling without replacement, the maximum number of clusters is 16. 
 ```{r subset16_power, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  lambda0 = data[,"rate"]
+  lambda1 = lambda0 - 0.5 ## effect size = -0.5
+  lambda1[lambda1<0] = 0
+  Y1 = unlist(lapply(lambda1*data[,"time_years"], rpois, n=1))
   Y0 = data[,"Y0"]
-  Y1 = Y0 - 0.4
-  Y1[Y1<0] = 0
   re = cbind(Y0, Y1)
   colnames(re) = list("Y0", "Y1")
   return(re)
@@ -564,7 +582,10 @@ calc_teststat = function(W, data, ...){
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  ## pool rates
+  re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  ## person-level rates
+  ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
   return(re)
 }
 
@@ -573,10 +594,10 @@ for(n in 5:10){
   if(n*2>16){
     power16_finite = NA
   }else{
-    power16_finite = simPower(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
-    power16_finite_PT = simPowerPT(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+    power16_finite = simPower(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+    power16_finite_PT = simPowerPT(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
   }
-  power16_infinite = simPower(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="rate", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+  power16_infinite = simPower(nrep=1e4, nt=n, nc=n, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
   
   power16_i = cbind(n*2, power16_finite, power16_finite_PT, power16_infinite)
   colnames(power16_i) = list("ntotal", "power16_finite", "power16_finite_PT", "power16_infinite")
@@ -596,27 +617,29 @@ $$f_1:  Y_{ij}(1) \sim \big( max(\lambda_0-0.2,0) * t + Poisson(max(\lambda_0-0.
 If the previous study data suggests that a patient were not followed till the end of the study, it does not make sense to extend the follow-up time for them. So $\Delta t =0$ for patients who were not followed for a full 211 days in the flu study. Users should specify a lostfollowup argument in `CRTsearch` as follows: 
 ```{r extend_time, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
-  Y0 = data[,"Y0"]
-  Y1 = Y0 - 0.4 ## effect size = -0.4
-  Y1[ Y1 < 0 ] = 0
+  lambda0 = data[,"rate"]
+  lambda1 = lambda0 - 0.5 ## effect size = -0.4
+  lambda1[ lambda1 < 0 ] = 0
   extendtime = 0.25
-  Y0count = Y0*data[,"time_years"]
-  Y0count_extend = rpois(1,Y0*extendtime)
-  Y1count = Y1*data[,"time_years"]
-  Y1count_extend = rpois(1,Y1*extendtime)
+  Y0count = data[,"Y0"]
+  Y0count_extend = rpois(1,lambda0*extendtime)
+  Y1count = rpois(1,lambda1*data[,"time_years"])
+  Y1count_extend = rpois(1,lambda1*extendtime)
   Y1 = (Y1count + Y1count_extend*(1-data[,"lostfollowup"]))/(data[,"time_years"]+extendtime*(1-data[,"lostfollowup"]))
   Y0 = (Y0count + Y0count_extend*(1-data[,"lostfollowup"]))/(data[,"time_years"]+extendtime*(1-data[,"lostfollowup"]))
   re = cbind(Y0, Y1)
   colnames(re) = list("Y0", "Y1")
   return(re)
 }
-
 calc_teststat = function(W, data, ...){
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   extendtime = 0.25
   time = data[,"time_years"] + extendtime*(1-data[,"lostfollowup"])
-  re = sum(Y1[W==1]*time[W==1])/sum(time[W==1]) - sum(Y0[W==0]*time[W==0])/sum(time[W==0])
+  ## pool rates
+  re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
+  ## person-level rates
+  ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
   return(re)
 }
 
@@ -624,7 +647,7 @@ synFluData16$lostfollowup = ifelse(synFluData16$time_days < 211, 1 , 0)
 
 power_extendtime=NULL
 for(addtime in seq(0, 1, 0.25)){
-  power_i = simPower(nrep=1e4, nt=8, nc=8, dataset=synFluData16, outcome="rate", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat, extendtime=addtime)
+  power_i = simPower(nrep=1e4, nt=8, nc=8, dataset=synFluData16, outcome="count", clusterID="clusterID", replacement=FALSE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat, extendtime=addtime)
   power_extendtime = rbind(power_extendtime, cbind(addtime, power_i))
 }
 power_extendtime

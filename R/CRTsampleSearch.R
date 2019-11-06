@@ -521,10 +521,21 @@ assignment_CRT = function(nt, nc, data, stratifyBy=NULL, ...){
     SizeStrata = as.vector(table(tmp[,stratifyBy]))
     Nstrata = length(SizeStrata)
     while(sum(ClusterAssignment)!=nt){
-      ClusterAssignment = unlist(lapply(SizeStrata, function(n){ rbinom(n, 1, prob=1/2) }))
+      ClusterAssignment = NULL
+      for(is in 1:Nstrata){
+        nts = floor(SizeStrata[is] * (nt/(nc+nt)))
+        ncs = floor(SizeStrata[is] * (nc/(nc+nt)))
+        ns = SizeStrata[is] - nts - ncs
+        As = c(rep(1,ncs),rep(0, nts), rbinom(ns, 1, prob=1/2))
+        ClusterAssignment = c(ClusterAssignment, As)
+      }
     }
-    cIDorderByStrata = unique(data[,"cID"][order(data[,stratifyBy])])
-    ClusterAssignment = ClusterAssignment[cIDorderByStrata]
+##      while(sum(ClusterAssignment)!=nt){
+##        ClusterAssignment = unlist(lapply(SizeStrata, function(n){ rbinom(n, 1, prob=1/2) }))
+##      }
+      cIDorderByStrata = unique(data[,"cID"][order(data[,stratifyBy])])
+      ClusterAssignment = ClusterAssignment[cIDorderByStrata]
+##    }
   }else{
     stop(paste(stratifyBy, "is not found in the data"))
   }
