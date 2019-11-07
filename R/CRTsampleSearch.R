@@ -20,33 +20,33 @@
 #' @examples
 #'\dontrun{
 #' ## distribution of cluster sizes
-#' sim_cluster_size = function(N, ...){
-#'   size = round(100*rnorm(N, 0, 1), 0)
-#'   size[size<=0] = 1
+#' sim_cluster_size=function(N, ...){
+#'   size=round(100*rnorm(N, 0, 1), 0)
+#'   size[size<=0]=1
 #'   return(size)
 #' }
 #' ## distribution of the two potential outcomes
-#' sim_potential_outcomes = function(m,...){
-#'   muibar = rnorm(1, 0, 1)
-#'   Y0 = rnorm(m, muibar, 10) 
-#'   Y1 = Y0 + 1
-#'   re = cbind(Y0, Y1)
-#'   colnames(re) = list("Y0", "Y1")
+#' sim_potential_outcomes=function(m,...){
+#'   muibar=rnorm(1, 0, 1)
+#'   Y0=rnorm(m, muibar, 10) 
+#'   Y1=Y0 + 1
+#'   re=cbind(Y0, Y1)
+#'   colnames(re)=list("Y0", "Y1")
 #'   return(re)
 #' }
 #'
 #' ## Test statistics: pooled difference in the two study arms
-#' calc_teststat = function(W, data, ...){
-#'   Y0 = data[,"Y0"]
-#'   Y1 = data[,"Y1"]
-#'   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+#' calc_teststat=function(W, data, ...){
+#'   Y0=data[,"Y0"]
+#'   Y1=data[,"Y1"]
+#'   re=sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
 #'   return(re)
 #' }
 #' ## search for the optimal number of clusters 
 #' CRTsearch(nrep=1e4, nt=10, nc=10, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 #'}
 #' @export
-CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increaseSamplingBy=1, PermutationTest=FALSE, Npermutationtest=100, ...){
+CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increaseSamplingBy=1, PermutationTest=FALSE, Npermutationtest=100, ...){
   
   ## STEP 1: ################################################################################
   ## initiate a search list
@@ -56,19 +56,19 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
   }else if( (!is.null(nt)) && (!is.null(nc)) ){
     ## check and set up searching ratio  for (nt, nc)
     if( nt/nc != tcRatio ){
-      nt = round(nt*tcRatio, 0)
+      nt=round(nt*tcRatio, 0)
       print(paste("The search starts at nc=", nc, ", nt=", nt, "according to the specificed tcRatio=", tcRatio,sep=""))                
     }
   }else{
     if(is.null(nt)){
-      nt = round(nc*tcRatio, 0)
+      nt=round(nc*tcRatio, 0)
     }else{
-      nc = round(nt/tcRatio, 0)
+      nc=round(nt/tcRatio, 0)
     }
   }
-  search_list = cbind(nc, nt, NA)
-  colnames(search_list) = list("nc", "nt", "power")
-  search_list = as.data.frame(search_list)
+  search_list=cbind(nc, nt, NA)
+  colnames(search_list)=list("nc", "nt", "power")
+  search_list=as.data.frame(search_list)
   
   
   ## STEP 2: ################################################################################
@@ -76,74 +76,117 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
   
   ## calculate power with the initial sample size
   if(PermutationTest){
-    power = simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha,  ...)
+    power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha,  ...)
   }else{
-    power = simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+    power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
   }
   print(paste("start searching for optimal design at: nc:", nc, "nt:", nt, "power:", round(power,5)))
   
   ## start the searching process
-  searching = TRUE
-  upperbound = NULL
-  lowerbound = NULL
+  searching=TRUE
+  upperbound=NULL
+  lowerbound=NULL
   while(searching){
     
     if(power <= minpower){
-      lowerbound =  data.frame(nc,nt,power)
+      lowerbound= data.frame(nc,nt,power)
+      powerlower=power
+      ## update nt
       if(is.null(upperbound)){
-        nt=round(lowerbound$nt*2, 0);  nc=round(lowerbound$nc*2, 0)
+        nt=round(lowerbound$nt*minpower/powerlower*2, 0)
+        nc=round(nt/tcRatio, 0)
+      }else if(tcRatio <= 1){
+        if(upperbound$nt-lowerbound$nt<=2){
+          nttotal=upperbound$nt + lowerbound$nt
+          nt=round(nttotal/2,0)
+        }else{
+          nt=round(((minpower-powerlower)*upperbound$nt + (powerupper-minpower)*lowerbound$nt)/(powerupper-powerlower), 0)
+          nt=ifelse(nt==upperbound$nt, nt-1, nt)
+          nt=ifelse(nt==lowerbound$nt, nt+1, nt)
+        }
+        nc=round(nt/tcRatio, 0)
       }else{
-        nttotal = upperbound$nt + lowerbound$nt
-        nctotal = upperbound$nc + lowerbound$nc
-        nt=round(nttotal/2,0);  nc=round(nctotal/2,0)
+        if(upperbound$nc-lowerbound$nc<=2){
+          nctotal=upperbound$nc + lowerbound$nc
+          nc=round(nctotal/2,0)
+        }else{
+          nc=round(((minpower-powerlower)*upperbound$nc + (powerupper-minpower)*lowerbound$nc)/(powerupper-powerlower), 0)
+          nc=ifelse(nc==upperbound$nc, nc-1, nc)
+          nc=ifelse(nc==lowerbound$nc, nc+1, nc)
+        }
+        nt=round(nc*tcRatio, 0)
       }
+      ## increase nrep if close to minpower
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power = simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
+        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
       }else{
-        power = simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
       }
     }else if(power > minpower){
-      upperbound  = data.frame(nc,nt,power)
+      upperbound =data.frame(nc,nt,power)
+      powerupper=power
       if(is.null(lowerbound)){
-        nt=round(upperbound$nt/2, 0);  nc=round(upperbound$nc/2, 0)
-        nt=ifelse(nt>3, nt, 3); nc=ifelse(nt>3, nc, 3)
+        nt=round(upperbound$nt*powerupper/minpower*0.5, 0)
+        nc=round(nt/tcRatio, 0)
+      }else if(tcRatio <= 1){
+        if(upperbound$nt-lowerbound$nt<=2){
+          nttotal=upperbound$nt + lowerbound$nt
+          nt=round(nttotal/2,0)
+        }else{
+          nt=round(((minpower-powerlower)*upperbound$nt + (powerupper-minpower)*lowerbound$nt)/(powerupper-powerlower),0)
+          nt=ifelse(nt==upperbound$nt, nt-1, nt)
+          nt=ifelse(nt==lowerbound$nt, nt+1, nt)
+        }
+        nc=round(nt/tcRatio, 0)
       }else{
-        nttotal = upperbound$nt + lowerbound$nt
-        nctotal = upperbound$nc + lowerbound$nc
-        nt=round(nttotal/2,0);  nc=round(nctotal/2,0)
+        if(upperbound$nc-lowerbound$nc<=2){
+          nctotal=upperbound$nc + lowerbound$nc
+          nc=round(nctotal/2,0)
+        }else{
+          nc=round(((minpower-powerlower)*upperbound$nc + (powerupper-minpower)*lowerbound$nc)/(powerupper-powerlower), 0)
+          nc=ifelse(nc==upperbound$nc, nc-1, nc)
+          nc=ifelse(nc==lowerbound$nc, nc+1, nc)
+        }
+        nt=round(nc*tcRatio, 0)
       }
+      ## check if nt and nc are too small
+      nt=ifelse(nt>3, nt, 3); nc=ifelse(nt>3, nc, 3)
+      ## increase nrep if close to minpower
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power = simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
+        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
       }else{
-        power = simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
       }
     }
     
-    if(power <= minpower){
-      lowerbound  = data.frame(nc,nt,power)        
-    }else if(power > minpower){
-      upperbound  = data.frame(nc,nt,power)        
-    }
     print(paste("searching for optimal design at: nc:", nc, "nt:", nt, "power:", round(power,5)))
-    
+    if(power <= minpower){
+      lowerbound =data.frame(nc,nt,power) 
+      powerlower=power
+    }
+    if(power >= minpower){
+      upperbound =data.frame(nc,nt,power)
+      powerupper=power
+    }
+
     ## updete search status
     if(nt<=3 & nc<=3 & power>=minpower){
       searching=FALSE
-      upperbound  = data.frame(nc,nt,power)
+      upperbound =data.frame(nc,nt,power)
       print(paste("nc", nc, "nt:", nt, "power:", power, "two small sample size for a Randomization test"))        
     }else if( is.null(upperbound) |  is.null(lowerbound) ){
-      searching = TRUE
+      searching=TRUE
     }else if( (upperbound$nt+upperbound$nc)-(lowerbound$nt+lowerbound$nc) <= ceiling(2*tcRatio) ){
-      searching = FALSE
+      searching=FALSE
     }else{
-      searching = TRUE
+      searching=TRUE
     }                  
   }                
   
   print("optimal design found!")
-  names(upperbound) = list("nc", "nt", "power")
+  names(upperbound)=list("nc", "nt", "power")
   print(upperbound)
   return(upperbound)
 }
@@ -167,26 +210,26 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
 #' @examples
 #'\dontrun{
 #' ## distribution of cluster sizes
-#' sim_cluster_size = function(N, ...){
-#'   size = round(100*rnorm(N, 0, 1), 0)
-#'   size[size<=0] = 1
+#' sim_cluster_size=function(N, ...){
+#'   size=round(100*rnorm(N, 0, 1), 0)
+#'   size[size<=0]=1
 #'   return(size)
 #' }
 #' ## distribution of the two potential outcomes
-#' sim_potential_outcomes = function(m,...){
-#'   muibar = rnorm(1, 0, 1)
-#'   Y0 = rnorm(m, muibar, 10) 
-#'   Y1 = Y0 + 1
-#'   re = cbind(Y0, Y1)
-#'   colnames(re) = list("Y0", "Y1")
+#' sim_potential_outcomes=function(m,...){
+#'   muibar=rnorm(1, 0, 1)
+#'   Y0=rnorm(m, muibar, 10) 
+#'   Y1=Y0 + 1
+#'   re=cbind(Y0, Y1)
+#'   colnames(re)=list("Y0", "Y1")
 #'   return(re)
 #' }
 #'
 #' ## Test statistics: pooled difference in the two study arms
-#' calc_teststat = function(W, data, ...){
-#'   Y0 = data[,"Y0"]
-#'   Y1 = data[,"Y1"]
-#'   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+#' calc_teststat=function(W, data, ...){
+#'   Y0=data[,"Y0"]
+#'   Y1=data[,"Y1"]
+#'   re=sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
 #'   return(re)
 #' }
 #' ## search for the optimal number of clusters 
@@ -194,23 +237,23 @@ CRTsearch = function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, incr
 #'}
 #'
 #' @export
-simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, ...){
-  mcCores = parallel::detectCores()
+simPower=function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, ...){
+  mcCores=parallel::detectCores()
   ##if(nrep>1e3){
-  ##  TH0THa = TH0THa_i = NULL
+  ##  TH0THa=TH0THa_i=NULL
   ##  for(nrep_i in 1:ceiling(nrep/1e3)){
   ##    rm(TH0THa_i)
   ##    gc()  # free up memory before forking
-  ##    TH0THa_i = parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores-1)
-  ##    TH0THa_i = plyr::ldply(TH0THa_i, data.frame)
-  ##    TH0THa = rbind(TH0THa, TH0THa_i)
+  ##    TH0THa_i=parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores-1)
+  ##    TH0THa_i=plyr::ldply(TH0THa_i, data.frame)
+  ##    TH0THa=rbind(TH0THa, TH0THa_i)
   ##  }
   ##}else{
     gc()  # free up memory before forking
-    TH0THa = parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores-1)
-    TH0THa = plyr::ldply(TH0THa, data.frame)
+    TH0THa=parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores-1)
+    TH0THa=plyr::ldply(TH0THa, data.frame)
   ##}
-  power = simPowerTH0Ha(TH0=TH0THa$TH0, THa=TH0THa$THa, alpha=alpha, ...)
+  power=simPowerTH0Ha(TH0=TH0THa$TH0, THa=TH0THa$THa, alpha=alpha, ...)
   rm(TH0THa)
   gc()
   return(power)
@@ -236,26 +279,26 @@ simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL,
 #' @examples
 #'\dontrun{
 #' ## distribution of cluster sizes
-#' sim_cluster_size = function(N, ...){
-#'   size = round(100*rnorm(N, 0, 1), 0)
-#'   size[size<=0] = 1
+#' sim_cluster_size=function(N, ...){
+#'   size=round(100*rnorm(N, 0, 1), 0)
+#'   size[size<=0]=1
 #'   return(size)
 #' }
 #' ## distribution of the two potential outcomes
-#' sim_potential_outcomes = function(m,...){
-#'   muibar = rnorm(1, 0, 1)
-#'   Y0 = rnorm(m, muibar, 10) 
-#'   Y1 = Y0 + 1
-#'   re = cbind(Y0, Y1)
-#'   colnames(re) = list("Y0", "Y1")
+#' sim_potential_outcomes=function(m,...){
+#'   muibar=rnorm(1, 0, 1)
+#'   Y0=rnorm(m, muibar, 10) 
+#'   Y1=Y0 + 1
+#'   re=cbind(Y0, Y1)
+#'   colnames(re)=list("Y0", "Y1")
 #'   return(re)
 #' }
 #'
 #' ## Test statistics: pooled difference in the two study arms
-#' calc_teststat = function(W, data, ...){
-#'   Y0 = data[,"Y0"]
-#'   Y1 = data[,"Y1"]
-#'   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+#' calc_teststat=function(W, data, ...){
+#'   Y0=data[,"Y0"]
+#'   Y1=data[,"Y1"]
+#'   re=sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
 #'   return(re)
 #' }
 #' ## search for the optimal number of clusters 
@@ -263,107 +306,107 @@ simPower = function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL,
 #'}
 #'
 #' @export
-simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersided = NULL, Npermutationtest=100, ...){
+simPowerPT=function (nrep=10000, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, Npermutationtest=100, ...){
   powersPT=NULL
   for(npt in 1:Npermutationtest){
-    CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
-    mcCores = parallel::detectCores()
-    assignment = parallel::mclapply(1:nrep, function(i, ...) {
-      assignment_CRT(data = CRTsample, nt = nt, nc = nc, ...)
-    }, mc.cores = mcCores - 1)
-    assignment = as.data.frame(assignment)
-    CRTsampleH0 = CRTsample
-    CRTsampleH0$Y1 = CRTsampleH0$Y0
-    TH0 = parallel::mclapply(1:nrep, function(i, ...) {
-      FUN_TestStat(W = assignment[, i], data = CRTsampleH0, ...)
-    }, mc.cores = mcCores - 1)
-  THa = parallel::mclapply(1:nrep, function(i, ...) {
-      FUN_TestStat(W = assignment[, i], data = CRTsample, ...) }
-    , mc.cores = mcCores - 1)
-    TH0 = unlist(TH0)
-  THa = unlist(THa)
-    power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha,...)
-    powersPT = c(powersPT, power)
+    CRTsample=simulate_CRT(nt=nt, nc=nc, ...)
+    mcCores=parallel::detectCores()
+    assignment=parallel::mclapply(1:nrep, function(i, ...) {
+      assignment_CRT(data=CRTsample, nt=nt, nc=nc, ...)
+    }, mc.cores=mcCores - 1)
+    assignment=as.data.frame(assignment)
+    CRTsampleH0=CRTsample
+    CRTsampleH0$Y1=CRTsampleH0$Y0
+    TH0=parallel::mclapply(1:nrep, function(i, ...) {
+      FUN_TestStat(W=assignment[, i], data=CRTsampleH0, ...)
+    }, mc.cores=mcCores - 1)
+  THa=parallel::mclapply(1:nrep, function(i, ...) {
+      FUN_TestStat(W=assignment[, i], data=CRTsample, ...) }
+    , mc.cores=mcCores - 1)
+    TH0=unlist(TH0)
+  THa=unlist(THa)
+    power=simPowerTH0Ha(TH0=TH0, THa=THa, alpha=alpha,...)
+    powersPT=c(powersPT, power)
   }
-  power = mean(powersPT)
+  power=mean(powersPT)
   return(power)
 }
 
-##powersPT = lapply(1:Npermutationtest, function(i, ...) {
-##  CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
-##  mcCores = parallel::detectCores()
-##  assignment = parallel::mclapply(1:nrep, function(i, 
+##powersPT=lapply(1:Npermutationtest, function(i, ...) {
+##  CRTsample=simulate_CRT(nt=nt, nc=nc, ...)
+##  mcCores=parallel::detectCores()
+##  assignment=parallel::mclapply(1:nrep, function(i, 
 ##                                                   ...) {
-##    assignment_CRT(data = CRTsample, nt = nt, nc = nc, 
+##    assignment_CRT(data=CRTsample, nt=nt, nc=nc, 
 ##                   ...)
-##  }, mc.cores = mcCores - 1)
-##  assignment = as.data.frame(assignment)
-##  CRTsampleH0 = CRTsample
-##  CRTsampleH0$Y1 = CRTsampleH0$Y0
-##  TH0 = parallel::mclapply(1:nrep, function(i, ...) {
-##    FUN_TestStat(W = assignment[, i], data = CRTsampleH0, 
+##  }, mc.cores=mcCores - 1)
+##  assignment=as.data.frame(assignment)
+##  CRTsampleH0=CRTsample
+##  CRTsampleH0$Y1=CRTsampleH0$Y0
+##  TH0=parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W=assignment[, i], data=CRTsampleH0, 
 ##                 ...)
-##  }, mc.cores = mcCores - 1)
-##  THa = parallel::mclapply(1:nrep, function(i, ...) {
-##    FUN_TestStat(W = assignment[, i], data = CRTsample, 
+##  }, mc.cores=mcCores - 1)
+##  THa=parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W=assignment[, i], data=CRTsample, 
 ##                 ...)
-##  }, mc.cores = mcCores - 1)
-##  TH0 = unlist(TH0)
-##  THa = unlist(THa)
-##  power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha, 
+##  }, mc.cores=mcCores - 1)
+##  TH0=unlist(TH0)
+##  THa=unlist(THa)
+##  power=simPowerTH0Ha(TH0=TH0, THa=THa, alpha=alpha, 
 ##                        ...)
 ##  return(power)
 ##}, ...)
 
 ##powersPT=NULL
 ##for(npt in 1:Npermutationtest){
-##  CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
-##  mcCores = parallel::detectCores()
-##  assignment = parallel::mclapply(1:nrep, function(i, ...) {
-##    assignment_CRT(data = CRTsample, nt = nt, nc = nc, ...)
-##  }, mc.cores = mcCores - 1)
-##  assignment = as.data.frame(assignment)
-##  CRTsampleH0 = CRTsample
-##  CRTsampleH0$Y1 = CRTsampleH0$Y0
-##  TH0 = parallel::mclapply(1:nrep, function(i, ...) {
-##    FUN_TestStat(W = assignment[, i], data = CRTsampleH0, ...)
-##  }, mc.cores = mcCores - 1)
-##  THa = parallel::mclapply(1:nrep, function(i, ...) {
-##    FUN_TestStat(W = assignment[, i], data = CRTsample, ...) }
-##    , mc.cores = mcCores - 1)
-##  TH0 = unlist(TH0)
-##  THa = unlist(THa)
-##  power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha,...)
-##  powersPT = c(powersPT, power)
+##  CRTsample=simulate_CRT(nt=nt, nc=nc, ...)
+##  mcCores=parallel::detectCores()
+##  assignment=parallel::mclapply(1:nrep, function(i, ...) {
+##    assignment_CRT(data=CRTsample, nt=nt, nc=nc, ...)
+##  }, mc.cores=mcCores - 1)
+##  assignment=as.data.frame(assignment)
+##  CRTsampleH0=CRTsample
+##  CRTsampleH0$Y1=CRTsampleH0$Y0
+##  TH0=parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W=assignment[, i], data=CRTsampleH0, ...)
+##  }, mc.cores=mcCores - 1)
+##  THa=parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W=assignment[, i], data=CRTsample, ...) }
+##    , mc.cores=mcCores - 1)
+##  TH0=unlist(TH0)
+##  THa=unlist(THa)
+##  power=simPowerTH0Ha(TH0=TH0, THa=THa, alpha=alpha,...)
+##  powersPT=c(powersPT, power)
 ##}
 
 
-##mcCores = parallel::detectCores()
-##powersPT = parallel::mclapply(1:Npermutationtest, function(i, ...) {
-##  CRTsample = simulate_CRT(nt = nt, nc = nc, ...)
-##  mcCores = parallel::detectCores()
-##  assignment = parallel::mclapply(1:nrep, function(i, 
+##mcCores=parallel::detectCores()
+##powersPT=parallel::mclapply(1:Npermutationtest, function(i, ...) {
+##  CRTsample=simulate_CRT(nt=nt, nc=nc, ...)
+##  mcCores=parallel::detectCores()
+##  assignment=parallel::mclapply(1:nrep, function(i, 
 ##                                                   ...) {
-##    assignment_CRT(data = CRTsample, nt = nt, nc = nc, 
+##    assignment_CRT(data=CRTsample, nt=nt, nc=nc, 
 ##                   ...)
-##  }, mc.cores = mcCores - 1)
-##  assignment = as.data.frame(assignment)
-##  CRTsampleH0 = CRTsample
-##  CRTsampleH0$Y1 = CRTsampleH0$Y0
-##  TH0 = parallel::mclapply(1:nrep, function(i, ...) {
-##    FUN_TestStat(W = assignment[, i], data = CRTsampleH0, 
+##  }, mc.cores=mcCores - 1)
+##  assignment=as.data.frame(assignment)
+##  CRTsampleH0=CRTsample
+##  CRTsampleH0$Y1=CRTsampleH0$Y0
+##  TH0=parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W=assignment[, i], data=CRTsampleH0, 
 ##                 ...)
-##  }, mc.cores = mcCores - 1)
-##  THa = parallel::mclapply(1:nrep, function(i, ...) {
-##    FUN_TestStat(W = assignment[, i], data = CRTsample, 
+##  }, mc.cores=mcCores - 1)
+##  THa=parallel::mclapply(1:nrep, function(i, ...) {
+##    FUN_TestStat(W=assignment[, i], data=CRTsample, 
 ##                 ...)
-##  }, mc.cores = mcCores - 1)
-##  TH0 = unlist(TH0)
-##  THa = unlist(THa)
-##  power = simPowerTH0Ha(TH0 = TH0, THa = THa, alpha = alpha, 
+##  }, mc.cores=mcCores - 1)
+##  TH0=unlist(TH0)
+##  THa=unlist(THa)
+##  power=simPowerTH0Ha(TH0=TH0, THa=THa, alpha=alpha, 
 ##                        ...)
 ##  return(power)
-##}, ..., mc.cores = mcCores - 1)
+##}, ..., mc.cores=mcCores - 1)
 
 #' simulate a smaple CRT study data
 #' 
@@ -383,18 +426,18 @@ simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersi
 #' @examples
 #'\dontrun{
 #' ## distribution of cluster sizes
-#' sim_cluster_size = function(N, ...){
-#'   size = round(100*rnorm(N, 0, 1), 0)
-#'   size[size<=0] = 1
+#' sim_cluster_size=function(N, ...){
+#'   size=round(100*rnorm(N, 0, 1), 0)
+#'   size[size<=0]=1
 #'   return(size)
 #' }
 #' ## distribution of the two potential outcomes
-#' sim_potential_outcomes = function(m,...){
-#'   muibar = rnorm(1, 0, 1)
-#'   Y0 = rnorm(m, muibar, 10) 
-#'   Y1 = Y0 + 1
-#'   re = cbind(Y0, Y1)
-#'   colnames(re) = list("Y0", "Y1")
+#' sim_potential_outcomes=function(m,...){
+#'   muibar=rnorm(1, 0, 1)
+#'   Y0=rnorm(m, muibar, 10) 
+#'   Y1=Y0 + 1
+#'   re=cbind(Y0, Y1)
+#'   colnames(re)=list("Y0", "Y1")
 #'   return(re)
 #' }
 #' 
@@ -403,47 +446,47 @@ simPowerPT = function (nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat, uppersi
 #'}
 #'
 #' @export
-simulate_CRT = function(nt, nc, replacement=TRUE, FUN_clustersize=NULL, FUN_Ys=NULL, dataset=NULL, outcome=NULL, clusterID=NULL, ...){
+simulate_CRT=function(nt, nc, replacement=TRUE, FUN_clustersize=NULL, FUN_Ys=NULL, dataset=NULL, outcome=NULL, clusterID=NULL, ...){
   
   if(is.null(dataset)){
     if(is.null(FUN_clustersize) ){
       stop("please specify a function to simulate the size of clusters when no dataset is provided")
     }else{
-      cluster_size = FUN_clustersize(nt+nc)
+      cluster_size=FUN_clustersize(nt+nc)
     }
     ## generate Yi(0) and Yi(1) 
     if(is.null(FUN_Ys)){
       stop("please specify a function to simulate the potential outcome under the control")
     }else{
-      outcomes = lapply(cluster_size, simulate_Ys, FUN_Ys=FUN_Ys, ...)
-      outcomes = plyr::ldply(outcomes, data.frame)
+      outcomes=lapply(cluster_size, simulate_Ys, FUN_Ys=FUN_Ys, ...)
+      outcomes=plyr::ldply(outcomes, data.frame)
     }
-    cID = rep(1:(nt+nc), cluster_size)
-    re = as.data.frame(cbind(cID, outcomes))
+    cID=rep(1:(nt+nc), cluster_size)
+    re=as.data.frame(cbind(cID, outcomes))
   }else{
     if(is.null(FUN_Ys)){
       stop("please specify a function to simulate the potential outcomes under intervention")
     }
     colnames(dataset)[which(colnames(dataset)==clusterID)]="cID"
     colnames(dataset)[which(colnames(dataset)==outcome)]="Y0"
-    cNdataset = length(unique(dataset$cID))
+    cNdataset=length(unique(dataset$cID))
     if((!replacement)&(cNdataset<(nt+nc))){
       stop("required cluster size bigger than the one offered")
     }
-    dataset$cID = as.numeric(dataset$cID)
-    selected_cluster = sample(unique(dataset$cID), nt+nc, replace=replacement)
-    real_baseline = function(i){
-      baseline = dataset[dataset$cID==selected_cluster[i],]
-      baseline$cID = i
+    dataset$cID=as.numeric(dataset$cID)
+    selected_cluster=sample(unique(dataset$cID), nt+nc, replace=replacement)
+    real_baseline=function(i){
+      baseline=dataset[dataset$cID==selected_cluster[i],]
+      baseline$cID=i
       return(baseline)
     }
-    baseline = lapply(1:(nt+nc), real_baseline)
-    baseline = plyr::ldply(baseline, data.frame)
+    baseline=lapply(1:(nt+nc), real_baseline)
+    baseline=plyr::ldply(baseline, data.frame)
     ## Yi(1)
-    outcomes = simulate_Ys(dataset=baseline, FUN_Ys=FUN_Ys, ...)
-    baseline$Y0 = outcomes[,"Y0"]
-    baseline$Y1 = outcomes[,"Y1"]
-    re = baseline
+    outcomes=simulate_Ys(dataset=baseline, FUN_Ys=FUN_Ys, ...)
+    baseline$Y0=outcomes[,"Y0"]
+    baseline$Y1=outcomes[,"Y1"]
+    re=baseline
   } 
   return(re)
 }    
@@ -454,95 +497,95 @@ simulate_CRT = function(nt, nc, replacement=TRUE, FUN_clustersize=NULL, FUN_Ys=N
 ###################################################################
 
 ## sample the two potential outcomes with/without a real dataset
-simulate_Ys = function(ClusterSize=NULL, FUN_Ys=NULL, dataset=NULL, ...){
+simulate_Ys=function(ClusterSize=NULL, FUN_Ys=NULL, dataset=NULL, ...){
   if(is.null(FUN_Ys) & is.null(dataset)){
     stop("must specify FUN_Ys when no dataset is provided")
   }else if(is.null(dataset)){
     ## generate Ys when no dataset is provided
-    Ys = FUN_Ys(ClusterSize)
+    Ys=FUN_Ys(ClusterSize)
   }else{
     ## generate Y1 when dataset is provided
-    Ys = FUN_Ys(data=dataset, ...)
+    Ys=FUN_Ys(data=dataset, ...)
   }
-  re = as.data.frame(Ys)
+  re=as.data.frame(Ys)
   return(re)
 }
 
 ## approximate Power using the distribution of the test statistics under H0 and Ha
-simPowerTH0Ha = function(TH0, THa, alpha=0.05, uppersided=NULL, ...){
+simPowerTH0Ha=function(TH0, THa, alpha=0.05, uppersided=NULL, ...){
   ## by default performs twosided test
   ## otherwise specify uppersided or not
   if(sum(is.na(TH0))>0){print(summary(TH0))}
   if(sum(is.na(TH0))>0){print(summary(THa))}
   if(is.null(uppersided)){
-    Tstar = quantile(TH0, probs=c(alpha/2, 1-alpha/2))
-    power = (sum(THa >= Tstar[2]) + sum(THa <= Tstar[1])) / length(THa)
+    Tstar=quantile(TH0, probs=c(alpha/2, 1-alpha/2))
+    power=(sum(THa >= Tstar[2]) + sum(THa <= Tstar[1])) / length(THa)
   }else if(uppersided){
-    Tstar = quantile(TH0, probs=1-alpha/2)
-    power = sum(THa >= Tstar[1]) / length(THa)
+    Tstar=quantile(TH0, probs=1-alpha/2)
+    power=sum(THa >= Tstar[1]) / length(THa)
   }else if(!uppersided){
-    Tstar = quantile(TH0, probs=alpha/2)
-    power = sum(THa <= Tstar[1]) / length(THa)
+    Tstar=quantile(TH0, probs=alpha/2)
+    power=sum(THa <= Tstar[1]) / length(THa)
   }
   return(power)
 }
 
 
 ## The value of the test statistics under H0 and Ha
-TestStat_TH0THa = function(i, FUN_TestStat, nt, nc, ...){
+TestStat_TH0THa=function(i, FUN_TestStat, nt, nc, ...){
   ## data generating mechanism
-  CRTsample = simulate_CRT(nt=nt, nc=nc, ...)
+  CRTsample=simulate_CRT(nt=nt, nc=nc, ...)
   ## assignement mechanism
-  assignment = assignment_CRT(data=CRTsample, nt=nt, nc=nc, ...)
+  assignment=assignment_CRT(data=CRTsample, nt=nt, nc=nc, ...)
   
   ## Test statistics under H0
-  ##TH0 = calc_TestStat(assignment=assignment, Y0name="Y0", Y1name="Y0", data=CRTsample, ...)
-  CRTsampleH0 = CRTsample
-  CRTsampleH0$Y1 = CRTsampleH0$Y0
-  TH0 = FUN_TestStat(assignment, CRTsampleH0, ...)
+  ##TH0=calc_TestStat(assignment=assignment, Y0name="Y0", Y1name="Y0", data=CRTsample, ...)
+  CRTsampleH0=CRTsample
+  CRTsampleH0$Y1=CRTsampleH0$Y0
+  TH0=FUN_TestStat(assignment, CRTsampleH0, ...)
   ## Test statistics under Ha
-  ##THa = calc_TestStat(assignment=assignment, Y0name="Y0", Y1name="Y1", data=CRTsample, ...)
-  THa = FUN_TestStat(assignment, CRTsample, ...)
+  ##THa=calc_TestStat(assignment=assignment, Y0name="Y0", Y1name="Y1", data=CRTsample, ...)
+  THa=FUN_TestStat(assignment, CRTsample, ...)
 
-  re = cbind(TH0, THa)
-  colnames(re) = list("TH0", "THa")
+  re=cbind(TH0, THa)
+  colnames(re)=list("TH0", "THa")
   return(re)
 }
 
 
 ## randomization mechanism: assignment at the cluster level
-assignment_CRT = function(nt, nc, data, stratifyBy=NULL, ...){
-  ClusterAssignment = rep(0,nc+nt)
+assignment_CRT=function(nt, nc, data, stratifyBy=NULL, ...){
+  ClusterAssignment=rep(0,nc+nt)
   if(is.null(stratifyBy)){
     TXTid=sample(1:(nc+nt), nt)
-    ClusterAssignment[TXTid] = 1
+    ClusterAssignment[TXTid]=1
   }else if(stratifyBy %in% colnames(data)){
-    tmp = data[!duplicated(data$cID),c("cID", stratifyBy)]
-    SizeStrata = as.vector(table(tmp[,stratifyBy]))
-    Nstrata = length(SizeStrata)
+    tmp=data[!duplicated(data$cID),c("cID", stratifyBy)]
+    SizeStrata=as.vector(table(tmp[,stratifyBy]))
+    Nstrata=length(SizeStrata)
     while(sum(ClusterAssignment)!=nt){
-      ClusterAssignment = NULL
+      ClusterAssignment=NULL
       for(is in 1:Nstrata){
-        nts = floor(SizeStrata[is] * (nt/(nc+nt)))
-        ncs = floor(SizeStrata[is] * (nc/(nc+nt)))
-        ns = SizeStrata[is] - nts - ncs
-        As1 = rep(0, ncs+nts)
+        nts=floor(SizeStrata[is] * (nt/(nc+nt)))
+        ncs=floor(SizeStrata[is] * (nc/(nc+nt)))
+        ns=SizeStrata[is] - nts - ncs
+        As1=rep(0, ncs+nts)
         As1_TXTid=sample(1:(ncs+nts), nts)
-        As1[As1_TXTid] = 1
-        As = c(As1, rbinom(ns, 1, prob=nt/(nc+nt)))
-        ClusterAssignment = c(ClusterAssignment, As)
+        As1[As1_TXTid]=1
+        As=c(As1, rbinom(ns, 1, prob=nt/(nc+nt)))
+        ClusterAssignment=c(ClusterAssignment, As)
       }
     }
-    tmp = data[!duplicated(data$cID),c("cID",stratifyBy)]
-    tmp = tmp[order(tmp[,stratifyBy]),]
-    tmp$A = ClusterAssignment
-    tmp = tmp[order(tmp[,"cID"]),]
-    ClusterAssignment = tmp$A
+    tmp=data[!duplicated(data$cID),c("cID",stratifyBy)]
+    tmp=tmp[order(tmp[,stratifyBy]),]
+    tmp$A=ClusterAssignment
+    tmp=tmp[order(tmp[,"cID"]),]
+    ClusterAssignment=tmp$A
   }else{
     stop(paste(stratifyBy, "is not found in the data"))
   }
-  cluster_size = as.data.frame(table(data$cID))$Freq
-  assignment = rep(ClusterAssignment, cluster_size)
+  cluster_size=as.data.frame(table(data$cID))$Freq
+  assignment=rep(ClusterAssignment, cluster_size)
   return(assignment)
 }
 

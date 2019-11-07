@@ -31,26 +31,26 @@ estimate hypothesis test power for a Cluster Randomization Trail (CRT) given the
 \examples{
 \dontrun{
 ## distribution of cluster sizes
-sim_cluster_size = function(N, ...){
-  size = round(100*rnorm(N, 0, 1), 0)
-  size[size<=0] = 1
+sim_cluster_size=function(N, ...){
+  size=round(100*rnorm(N, 0, 1), 0)
+  size[size<=0]=1
   return(size)
 }
 ## distribution of the two potential outcomes
-sim_potential_outcomes = function(m,...){
-  muibar = rnorm(1, 0, 1)
-  Y0 = rnorm(m, muibar, 10) 
-  Y1 = Y0 + 1
-  re = cbind(Y0, Y1)
-  colnames(re) = list("Y0", "Y1")
+sim_potential_outcomes=function(m,...){
+  muibar=rnorm(1, 0, 1)
+  Y0=rnorm(m, muibar, 10) 
+  Y1=Y0 + 1
+  re=cbind(Y0, Y1)
+  colnames(re)=list("Y0", "Y1")
   return(re)
 }
 
 ## Test statistics: pooled difference in the two study arms
-calc_teststat = function(W, data, ...){
-  Y0 = data[,"Y0"]
-  Y1 = data[,"Y1"]
-  re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
+calc_teststat=function(W, data, ...){
+  Y0=data[,"Y0"]
+  Y1=data[,"Y1"]
+  re=sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
   return(re)
 }
 ## search for the optimal number of clusters 

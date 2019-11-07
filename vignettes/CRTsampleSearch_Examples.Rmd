@@ -28,7 +28,6 @@ library(CRTsampleSearch)
 sim_cluster_size = function(N, ...){
   size = round(100*rlnorm(N, 0, 1), 0)
   size[size<=0] = 1
-  print(sigma2n)
   return(size)
 }
 
@@ -36,7 +35,7 @@ sim_cluster_size = function(N, ...){
 sim_potential_outcomes = function(m,...){
   muibar = rnorm(1, 0, 1)
   Y0 = rnorm(m, muibar, 10) 
-  Y1 = Y0 + 1
+  Y1 = Y0 + 0.8
   re = cbind(Y0, Y1)
   colnames(re) = list("Y0", "Y1")
   return(re)
@@ -51,7 +50,7 @@ calc_teststat = function(W, data, ...){
 }
 
 ## CRTsampleSearch 
-n=CRTsearch(nrep=1e3, nt=20, nc=20, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
+n=CRTsearch(nrep=1e4, nt=100, nc=100, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 
 
 ## using formula (Rutterford et cl. 2015)
