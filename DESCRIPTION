@@ -4,7 +4,7 @@ Version: 0.0
 Author: Ruoshui Zhai <ruoshui_zhai@brown.edu>
 Maintainer: Ruoshui Zhai <ruoshui_zhai@brown.edu>
 Description: Sample Size for Cluster Randomized Trials: A Simulation-Based Search Algorithm
-Depends: R (>= 3.6.0)
+Depends: R (>= 3.5.0)
 Imports: 
 	parallel,
 	pscl,
