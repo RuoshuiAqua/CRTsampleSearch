@@ -119,9 +119,9 @@ CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increa
       ## increase nrep if close to minpower
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
+        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, mcCores=mcCores, ...)
       }else{
-        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, mcCores=mcCores, ...)
       }
     }else if(power > minpower){
       upperbound =data.frame(nc,nt,power)
@@ -155,9 +155,9 @@ CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increa
       ## increase nrep if close to minpower
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
+        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, mcCores=mcCores, ...)
       }else{
-        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, mcCores=mcCores, ...)
       }
     }
     
