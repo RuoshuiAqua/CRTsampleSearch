@@ -46,7 +46,7 @@
 #' CRTsearch(nrep=1e4, nt=10, nc=10, FUN_clustersize=sim_cluster_size, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 #'}
 #' @export
-CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increaseSamplingBy=1, PermutationTest=FALSE, Npermutationtest=100, ...){
+CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increaseSamplingBy=1, PermutationTest=FALSE, Npermutationtest=100, mcCores=parallel::detectCores() - 1, ...){
   
   ## STEP 1: ################################################################################
   ## initiate a search list
@@ -76,9 +76,9 @@ CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increa
   
   ## calculate power with the initial sample size
   if(PermutationTest){
-    power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha,  ...)
+    power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, mcCores=mcCores, ...)
   }else{
-    power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+    power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, mcCores=mcCores, ...)
   }
   print(paste("start searching for optimal design at: nc:", nc, "nt:", nt, "power:", round(power,5)))
   
@@ -119,9 +119,9 @@ CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increa
       ## increase nrep if close to minpower
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
+        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, mcCores=mcCores, ...)
       }else{
-        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, mcCores=mcCores, ...)
       }
     }else if(power > minpower){
       upperbound =data.frame(nc,nt,power)
@@ -155,9 +155,9 @@ CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increa
       ## increase nrep if close to minpower
       if(power >= max(0, minpower-0.2) & power <= max(1, minpower*9.5/8)){nrep=min(round(increaseSamplingBy*nrep,0), 1e6)}
       if(PermutationTest){
-        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, ...)
+        power=simPowerPT(nrep=nrep, nt=nt, nc=nc, alpha=alpha, Npermutationtest=Npermutationtest, mcCores=mcCores, ...)
       }else{
-        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, ...)
+        power=simPower(nrep=nrep, nt=nt, nc=nc, alpha=alpha, mcCores=mcCores, ...)
       }
     }
     
@@ -237,8 +237,7 @@ CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increa
 #'}
 #'
 #' @export
-simPower=function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, ...){
-  mcCores=parallel::detectCores()
+simPower=function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, mcCores=parallel::detectCores() - 1, ...){
   ##if(nrep>1e3){
   ##  TH0THa=TH0THa_i=NULL
   ##  for(nrep_i in 1:ceiling(nrep/1e3)){
@@ -250,7 +249,7 @@ simPower=function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, .
   ##  }
   ##}else{
     gc()  # free up memory before forking
-    TH0THa=parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores-1)
+    TH0THa=parallel::mclapply(1:nrep, TestStat_TH0THa, nt=nt, nc=nc, FUN_TestStat=FUN_TestStat, ..., mc.cores=mcCores)
     TH0THa=plyr::ldply(TH0THa, data.frame)
   ##}
   power=simPowerTH0Ha(TH0=TH0THa$TH0, THa=TH0THa$THa, alpha=alpha, ...)
@@ -306,23 +305,22 @@ simPower=function(nrep=1e4, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, .
 #'}
 #'
 #' @export
-simPowerPT=function (nrep=10000, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, Npermutationtest=100, ...){
+simPowerPT=function (nrep=10000, nt, nc, alpha=0.05, FUN_TestStat, uppersided=NULL, Npermutationtest=100, mcCores=parallel::detectCores() - 1, ...){
   powersPT=NULL
   for(npt in 1:Npermutationtest){
     CRTsample=simulate_CRT(nt=nt, nc=nc, ...)
-    mcCores=parallel::detectCores()
     assignment=parallel::mclapply(1:nrep, function(i, ...) {
       assignment_CRT(data=CRTsample, nt=nt, nc=nc, ...)
-    }, mc.cores=mcCores - 1)
+    }, mc.cores=mcCores)
     assignment=as.data.frame(assignment)
     CRTsampleH0=CRTsample
     CRTsampleH0$Y1=CRTsampleH0$Y0
     TH0=parallel::mclapply(1:nrep, function(i, ...) {
       FUN_TestStat(W=assignment[, i], data=CRTsampleH0, ...)
-    }, mc.cores=mcCores - 1)
+    }, mc.cores=mcCores)
   THa=parallel::mclapply(1:nrep, function(i, ...) {
       FUN_TestStat(W=assignment[, i], data=CRTsample, ...) }
-    , mc.cores=mcCores - 1)
+    , mc.cores=mcCores)
     TH0=unlist(TH0)
   THa=unlist(THa)
     power=simPowerTH0Ha(TH0=TH0, THa=THa, alpha=alpha,...)
