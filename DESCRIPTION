@@ -10,7 +10,6 @@ Imports:
 	pscl,
 	plyr,
 	lme4,
-	gee,
 	lmtest
 License: GPL-3
 Encoding: UTF-8
