@@ -48,6 +48,9 @@
 #' @export
 CRTsearch=function(nrep=1e4, nt, nc, tcRatio=1, minpower=0.8, alpha=0.05, increaseSamplingBy=1, PermutationTest=FALSE, Npermutationtest=100, mcCores=parallel::detectCores() - 1, ...){
   
+  if(Sys.info()['sysname'] == "Windows") {
+    mcCores = 1
+  }
   ## STEP 1: ################################################################################
   ## initiate a search list
   ## searching list is the list for seatching; created at the beginning of the program run and updated at the end or each searching stage    
