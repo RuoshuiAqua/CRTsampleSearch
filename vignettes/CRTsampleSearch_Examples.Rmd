@@ -32,7 +32,6 @@ library(CRTsampleSearch)
 ```
 
 
-
 # Section 1: Using distributions of known forms
 The goal of this section is to show you how to use CRTsampleSearch to estimate the optimal number of clusters for a cluster randomization trial (CRT) when the distributions of cluster sizes and potential outcomes have known analytic forms. Specifically, all the simulation examples in Section 6 of the paper are included in this document.
 
