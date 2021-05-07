@@ -453,7 +453,7 @@ simulate_CRT=function(nt, nc, replacement=TRUE, FUN_clustersize=NULL, FUN_Ys=NUL
     if(is.null(FUN_clustersize) ){
       stop("please specify a function to simulate the size of clusters when no dataset is provided")
     }else{
-      cluster_size=FUN_clustersize(nt+nc)
+      cluster_size=FUN_clustersize(nt+nc, ...)
     }
     ## generate Yi(0) and Yi(1) 
     if(is.null(FUN_Ys)){
@@ -503,7 +503,7 @@ simulate_Ys=function(ClusterSize=NULL, FUN_Ys=NULL, dataset=NULL, ...){
     stop("must specify FUN_Ys when no dataset is provided")
   }else if(is.null(dataset)){
     ## generate Ys when no dataset is provided
-    Ys=FUN_Ys(ClusterSize)
+    Ys=FUN_Ys(ClusterSize, ...)
   }else{
     ## generate Y1 when dataset is provided
     Ys=FUN_Ys(data=dataset, ...)
