@@ -6,7 +6,7 @@
 \usage{
 CRTsearch(nrep = 10000, nt, nc, tcRatio = 1, minpower = 0.8,
   alpha = 0.05, increaseSamplingBy = 1, PermutationTest = FALSE,
-  Npermutationtest = 100, ...)
+  Npermutationtest = 100, mcCores = parallel::detectCores() - 1, ...)
 }
 \arguments{
 \item{nrep}{the number of replications of the simulation procedure for generating the pseudo study data, default is \code{"1000"})}

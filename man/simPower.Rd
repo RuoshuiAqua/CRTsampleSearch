@@ -5,7 +5,7 @@
 \title{estimate hypothesis test power for a CRT using simulation}
 \usage{
 simPower(nrep = 10000, nt, nc, alpha = 0.05, FUN_TestStat,
-  uppersided = NULL, ...)
+  uppersided = NULL, mcCores = parallel::detectCores() - 1, ...)
 }
 \arguments{
 \item{nrep}{the number of replications of the simulation procedure for generating the pseudo study data, default is \code{"1000"})}
