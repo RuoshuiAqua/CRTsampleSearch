@@ -40,6 +40,9 @@ The goal of this section is to show you how to use CRTsampleSearch to estimate t
 ```{r, eval=FALSE, message=FALSE}
 ## simulate size of a cluster: log-normal distribution
 sim_cluster_size = function(N, ...){
+  # input: 
+  # N: an integer of the total numebr of clusters
+  # output: a vector of N integers indicating the size of each cluster in the trial
   size = round(100*rlnorm(N, 0, 1), 0)
   size[size<=0] = 1
   return(size)
@@ -47,6 +50,9 @@ sim_cluster_size = function(N, ...){
 
 ## continuous outcome: Normal and Normal Two-level Model + fixed_continuous_change
 sim_potential_outcomes = function(m,...){
+  # input: 
+  # m: an integer of the number of individuals in a cluster (i.e. size of the cluster)
+  # output: a (m x 2) matrix of the two potential outcomes for each and every individual in the cluster
   muibar = rnorm(1, 0, 1)
   Y0 = rnorm(m, muibar, 10) 
   Y1 = Y0 + 0.8
@@ -57,6 +63,10 @@ sim_potential_outcomes = function(m,...){
 
 ## test statistics: pooled difference btw the two arm means
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the sample means between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
@@ -96,17 +106,24 @@ N_3
 ```{r, eval=FALSE}
 ## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
+  # input: 
+  # N: an integer of the total numebr of clusters
+  # output: a vector of N integers indicating the size of each cluster in the trial
   size = rep(100,N)
   return(size)
 }
 
 ## continuous outcome: Normal and 0-log-Normal Two-level Model + fixed_continuous_change
-sim_potential_outcomes = function(m,...){
-  muibar = rnorm(1, mean=10, sd=sqrt(10))
-  muibar = ifelse(muibar<=0, 0.0001, muibar)
-  p0 = 0.2
+sim_potential_outcomes = function(m,p0,...){
+  # input:
+  # m: an integer of the number of individuals in a cluster (i.e. size of the cluster)
+  # output: a (m x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  #muibar = rnorm(1, mean=10, sd=sqrt(10))
+  meanlog2 = log(1 / sqrt( 5/1^2 +1) )
+  sd2log2 = log( 5/ 1^2 +1 )
+  muibar = rlnorm(1, mean=meanlog2, sd=sqrt(sd2log2))
   v0 = rbinom(m,1,prob=1-p0)
-  varlogN = 10
+  varlogN = 5
   meanlog = log(muibar / sqrt( varlogN/muibar^2 +1) )
   sd2log = log( varlogN/ muibar^2 +1 )
   Y0 = v0 * rlnorm(m, meanlog, sqrt(sd2log))
@@ -116,8 +133,13 @@ sim_potential_outcomes = function(m,...){
   return(re)
 }
 
+
 ## test statistics: pooled difference btw the two arm means
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the sample means between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
@@ -148,12 +170,18 @@ N
 ```{r, eval=FALSE}
 ## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
+  # input: 
+  # N: an integer of the total numebr of clusters
+  # output: a vector of N integers indicating the size of each cluster in the trial
   size = rep(100,N)
   return(size)
 }
 
 ## binary outcome: beta and bernoulli Two-level Model + dependent bernoulli increase
 sim_potential_outcomes = function(m,...){
+  # input: 
+  # m: an integer of the number of individuals in a cluster (i.e. size of the cluster)
+  # output: a (m x 2) matrix of the two potential outcomes for each and every individual in the cluster
   pbar=rbeta(1,shape1=1, shape2=4)
   Y0= rbinom(m, size=1, prob=pbar ) 
   Y1 = rbinom(m, size=1, prob=0.2)*(1-Y0) + Y0
@@ -164,6 +192,10 @@ sim_potential_outcomes = function(m,...){
 
 ## test statistics: pooled difference btw the two arm means
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the sample means between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
@@ -196,12 +228,18 @@ N
 ```{r, eval=FALSE}
 ## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
+  # input: 
+  # N: an integer of the total numebr of clusters
+  # output: a vector of N integers indicating the size of each cluster in the trial
   size = rep(100,N)
   return(size)
 }
 
 ## count outcome: gamma and poisson Two-level Model + independent poisson increase
 sim_potential_outcomes = function(m,...){
+  # input: 
+  # m: an integer of the number of individuals in a cluster (i.e. size of the cluster)
+  # output: a (m x 2) matrix of the two potential outcomes for each and every individual in the cluster
   lambdai = rgamma(n=1, shape=10, rate=2)
   Y0 = rpois(m, lambda=lambdai)
   Y1 = rpois(m, lambda=0.1) + Y0
@@ -212,6 +250,10 @@ sim_potential_outcomes = function(m,...){
 
 ## test statistics: pooled difference btw the two arm means
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the sample means between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
@@ -244,12 +286,18 @@ N
 ```{r, eval=FALSE}
 ## simulate size of a cluster: equal cluster size (m=100)
 sim_cluster_size = function(N, ...){
+  # input: 
+  # N: an integer of the total numebr of clusters
+  # output: a vector of N integers indicating the size of each cluster in the trial
   size = rep(100,N)
   return(size)
 }
 
 ## count outcome: gamma and zero-inflated-poisson (ZIP) Two-level Model + independent poisson increase
 sim_potential_outcomes = function(m,...){
+  # input: 
+  # m: an integer of the number of individuals in a cluster (i.e. size of the cluster)
+  # output: a (m x 2) matrix of the two potential outcomes for each and every individual in the cluster
   lambdai = rgamma(n=1, shape=10, rate=2)
   Y0c = rpois(m, lambda=lambdai)
   p0=0.2
@@ -263,6 +311,10 @@ sim_potential_outcomes = function(m,...){
 
 ## test statistics: pooled difference btw the two arm means
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the sample means between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   re = sum(Y1[W==1])/sum(W==1) - sum(Y0[W==0])/sum(W==0)
@@ -314,6 +366,10 @@ $$f_1:  Y_{ij}(1) = max(Y_{ij}(0)-1, 0)$$
 
 ```{r count_change, eval=FALSE, linewidth=60}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   Y0 = data[,"Y0"]
   Y1 = Y0 - 1 ## effect size = -1
   Y1[Y1<0] = 0
@@ -322,10 +378,14 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the pooled rates between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  ## pool rates
+  ## pooled rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
   ## person-level rates
   ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
@@ -338,6 +398,10 @@ If we are interested in the effect of the intervention in terms of changes in ho
 $$f_1:  Y_{ij}(1) = max(Y_{ij}(0)-0.5, 0)$$
 ```{r rate_change, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   lambda0 = data[,"rate"]
   lambda1 = lambda0 - 0.5 ## effect size = -0.5
   lambda1[lambda1<0] = 0
@@ -348,10 +412,14 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the pooled rates between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  ## pool rates
+  ## pooled rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
   ## person-level rates
   ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
@@ -364,6 +432,10 @@ CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID
 #### 2.2.1 Generalized Linear Mixed Effect Model
 ```{r glmer, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   Y0 = data[,"Y0"]
   lambda0 = data[,"rate"]
   lambda1 = lambda0 - 0.4 ## effect size = -0.4
@@ -374,6 +446,10 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the estimated intervention effect from a Generalized Linear Mixed Effect Model
   outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
   AnaData = data.frame(cbind(outcome, W, data$cID, data$time_years))
   preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=AnaData)
@@ -395,6 +471,10 @@ $W_{i}$ is the indicator for intervention assignment at the cluster level, $g(\c
 
 ```{r GEE, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   Y0 = data[,"Y0"]
   lambda0 = data[,"rate"]
   lambda1 = lambda0 - 0.4 ## effect size = -0.4
@@ -405,6 +485,10 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the estimated intervention effect from a GEE model.
   outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
   preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable", silent=TRUE)
   re = preg$coef[2]
@@ -432,6 +516,10 @@ Suppose the new study adopts stratified randomization, i.e. randomizing sampled 
 
 ```{r stratified, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   lambda0 = data[,"rate"]
   lambda1 = lambda0 - 0.5 ## effect size = -0.5
   lambda1[lambda1<0] = 0
@@ -442,10 +530,14 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the pooled rates between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  ## pool rates
+  ## pooled rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
   ## person-level rates
   ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
@@ -506,6 +598,10 @@ $P_i$ and $\lambda_i$ are the proportion of zero-inflation and event rate estima
 
 ```{r ZIP_effect, eval=FALSE}
 sim_potential_outcomes = function(data, ...){ 
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   Y0 = data[,"Y0"]
   lambda1 = data[,"clusterLambda0"] - 0.1 ## effect size = -0.1
   lambda1 = ifelse(lambda1<=0,0,lambda1)
@@ -518,10 +614,14 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the pooled rates between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  ## pool rates
+  ## pooled rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
   ## person-level rates
   ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
@@ -534,6 +634,10 @@ CRTsearch(nrep=1e4, nt=10, nc=10, dataset=synFluData, outcome="count", clusterID
 #### 2.4.1 GEE when intervention effect the possion process in a ZIP model
 ```{r GEE2, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   Y0 = data[,"Y0"]
   lambda0 = data[,"clusterLambda0"]
   lambda1 = lambda0 - 0.1 ## effect size = -0.4
@@ -546,6 +650,10 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the estimated intervention effect from a GEE model.
   outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
   preg = gee::gee(outcome ~ W + offset(data$time_years), id=data$cID, family = "poisson", corstr="exchangeable", silent=TRUE)
   re = preg$coef[2]
@@ -554,9 +662,13 @@ calc_teststat = function(W, data, ...){
 CRTsearch(nrep=1e3, nt=15, nc=15, dataset=synFluData, outcome="count", clusterID="clusterID", replacement=TRUE, FUN_Ys=sim_potential_outcomes, FUN_TestStat=calc_teststat)
 ```
 
-#### 2.4.2 Generalized Linear Mixed Effect Model when intervention effect the possion process in a ZIP model
+#### 2.4.2 Generalized Linear Mixed Effect Model when intervention only impacts the possion process in a ZIP model
 ```{r glmer2, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   Y0 = data[,"Y0"]
   lambda0 = data[,"clusterLambda0"]
   lambda1 = lambda0 - 0.1 ## effect size = -0.4
@@ -569,6 +681,10 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the estimated intervention effect from a Generalized Linear Mixed Effect model.
   outcome = data[,"Y1"]*W + data[,"Y0"]*(1-W)
   AnaData = data.frame(cbind(outcome, W, data$cID, data$time_years))
   preg = lme4::glmer(outcome ~ W + (1|V3), family=poisson, offset=V4, nAGQ=1, data=AnaData)
@@ -590,6 +706,10 @@ synFluData16 = synFluData[synFluData$clusterID %in% subset16,]
 The power for sample size from 10 to 20 is calculated in the following way. Note that when sampling without replacement, the maximum number of clusters is 16. 
 ```{r subset16_power, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   lambda0 = data[,"rate"]
   lambda1 = lambda0 - 0.5 ## effect size = -0.5
   lambda1[lambda1<0] = 0
@@ -600,10 +720,14 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the pooled rates between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   time = data[,"time_years"]
-  ## pool rates
+  ## pooled rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
   ## person-level rates
   ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
@@ -639,6 +763,10 @@ $$f_1:  Y_{ij}(1) \sim \big( max(\lambda_0-0.2,0) * t + Poisson(max(\lambda_0-0.
 If the previous study data suggest that a patient was not followed till the end of the study, it does not make sense to extend the follow-up time for them. So $\Delta t =0$ for patients who were not followed for a full 211 days in the flu study. Users should specify a lost-follow-up argument in `CRTsearch` as follows: 
 ```{r extend_time, eval=FALSE}
 sim_potential_outcomes = function(data, ...){
+  # input: 
+  # data: a dataframe with at least two columns (clusterID, Y0) representing the cluster sizes and the empirical distribution of the potential outcome Y0.
+  # output: a (Nm x 2) matrix of the two potential outcomes for each and every individual in the cluster
+  data = data[order(data$clusterID),]
   Y0count = data[,"Y0"]
   lambda0 = data[,"rate"]
   lambda1 = lambda0 - 0.4 ## effect size = -0.4
@@ -654,11 +782,15 @@ sim_potential_outcomes = function(data, ...){
   return(re)
 }
 calc_teststat = function(W, data, ...){
+  # input: 
+  # W: a vector of lenght N (the total number of clusters in the trial composed of 1s and 0s indicating the randomization assignment to the intervention arm and the control arm respectatively.
+  # data: a (Nm x 2) matrix of the two potential outcomes for all individuals participating in the trail ordered by their cluster ID.
+  # output: a numeric object for the value of the calculated test statistic. Here, it is the difference of the pooled rates between the two study arms.
   Y0 = data[,"Y0"]
   Y1 = data[,"Y1"]
   extendtime = 0.25
   time = data[,"time_years"] + extendtime*(1-data[,"lostfollowup"])
-  ## pool rates
+  ## pooled rates
   re = sum(Y1[W==1])/sum(time[W==1]) - sum(Y0[W==0])/sum(time[W==0])
   ## person-level rates
   ##re = mean(Y1[W==1]/time[W==1]) - mean(Y0[W==0]/time[W==0])
