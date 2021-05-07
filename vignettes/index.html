@@ -179,7 +179,7 @@ summary {
 
 <h1 class="title toc-ignore">CRTsampleSearch Examples</h1>
 <h4 class="author">Ruoshui Zhai</h4>
-<h4 class="date">04 February, 2021</h4>
+<h4 class="date">06 May, 2021</h4>
 
 </div>
 
@@ -277,14 +277,15 @@ sim_cluster_size = function(N, ...){
 
 ## continuous outcome: Normal and 0-log-Normal Two-level Model + fixed_continuous_change
 sim_potential_outcomes = function(m,...){
-  # input: 
+  # input:
   # m: an integer of the number of individuals in a cluster (i.e. size of the cluster)
   # output: a (m x 2) matrix of the two potential outcomes for each and every individual in the cluster
-  muibar = rnorm(1, mean=10, sd=sqrt(10))
-  muibar = ifelse(muibar&lt;=0, 0.0001, muibar)
-  p0 = 0.2
+  meanlog2 = log(1 / sqrt( 5/1^2 +1) )
+  sd2log2 = log( 5/ 1^2 +1 )
+  muibar = rlnorm(1, mean=meanlog2, sd=sqrt(sd2log2))
   v0 = rbinom(m,1,prob=1-p0)
-  varlogN = 10
+  p0 = 0.2
+  varlogN = 5
   meanlog = log(muibar / sqrt( varlogN/muibar^2 +1) )
   sd2log = log( varlogN/ muibar^2 +1 )
   Y0 = v0 * rlnorm(m, meanlog, sqrt(sd2log))

@@ -114,15 +114,15 @@ sim_cluster_size = function(N, ...){
 }
 
 ## continuous outcome: Normal and 0-log-Normal Two-level Model + fixed_continuous_change
-sim_potential_outcomes = function(m,p0,...){
+sim_potential_outcomes = function(m,...){
   # input:
   # m: an integer of the number of individuals in a cluster (i.e. size of the cluster)
   # output: a (m x 2) matrix of the two potential outcomes for each and every individual in the cluster
-  #muibar = rnorm(1, mean=10, sd=sqrt(10))
   meanlog2 = log(1 / sqrt( 5/1^2 +1) )
   sd2log2 = log( 5/ 1^2 +1 )
   muibar = rlnorm(1, mean=meanlog2, sd=sqrt(sd2log2))
   v0 = rbinom(m,1,prob=1-p0)
+  p0 = 0.2
   varlogN = 5
   meanlog = log(muibar / sqrt( varlogN/muibar^2 +1) )
   sd2log = log( varlogN/ muibar^2 +1 )
@@ -132,7 +132,6 @@ sim_potential_outcomes = function(m,p0,...){
   colnames(re) = list("Y0", "Y1")
   return(re)
 }
-
 
 ## test statistics: pooled difference btw the two arm means
 calc_teststat = function(W, data, ...){
